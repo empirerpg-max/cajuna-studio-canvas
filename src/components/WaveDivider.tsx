@@ -8,6 +8,7 @@ type Props = {
  * Organic wavy SVG divider between sections.
  * `fill` = color of the NEXT section (the wave fills into it).
  * `flip` = mirror horizontally for variety.
+ * NOTE: no stroke on path — avoids the straight border line artifact.
  */
 export function WaveDivider({ fill = '#FFF8F2', flip = false, className = '' }: Props) {
   return (
@@ -17,6 +18,7 @@ export function WaveDivider({ fill = '#FFF8F2', flip = false, className = '' }: 
         transform: flip ? 'scaleX(-1)' : undefined,
         lineHeight: 0,
         fontSize: 0,
+        display: 'block',
       }}
       aria-hidden
     >
@@ -30,6 +32,7 @@ export function WaveDivider({ fill = '#FFF8F2', flip = false, className = '' }: 
         <path
           d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1350,20 1440,40 L1440,80 L0,80 Z"
           fill={fill}
+          stroke="none"
         />
       </svg>
     </div>
