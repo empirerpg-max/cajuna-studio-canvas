@@ -4,6 +4,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Paperlogy @font-face ─── */
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-4REGULAR.TTF') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-5MEDIUM.TTF') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-6SEMIBOLD.TTF') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-7BOLD.TTF') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-8EXTRABOLD.TTF') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/PAPERLOGY-9BLACK.TTF') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -12,8 +56,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
 
-  --font-display: "Paperlogy", "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-sans: "Paperlogy", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: 'Paperlogy', system-ui, sans-serif;
+  --font-sans: 'Paperlogy', system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -39,65 +83,83 @@
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 1rem;
 
   /* Brand */
-  --brand-orange: oklch(0.7 0.17 45);     /* #E97933 */
-  --brand-navy: oklch(0.42 0.08 245);     /* #2D5F8A */
-  --brand-ink: oklch(0.18 0.01 60);       /* near black */
-  --brand-cream: oklch(0.985 0.012 80);
+  --brand-orange: #E97933;
+  --brand-navy: #2D5F8A;
+  --brand-ink: #1A1A1A;
+  --brand-cream: #FFF8F2;
 
   --background: var(--brand-cream);
   --foreground: var(--brand-ink);
-  --card: oklch(1 0 0);
+  --card: #ffffff;
   --card-foreground: var(--brand-ink);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: var(--brand-ink);
   --primary: var(--brand-orange);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: #ffffff;
   --secondary: var(--brand-navy);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.95 0.01 80);
-  --muted-foreground: oklch(0.45 0.02 60);
-  --accent: oklch(0.95 0.04 60);
+  --secondary-foreground: #ffffff;
+  --muted: #F0EAE3;
+  --muted-foreground: #6B5B4E;
+  --accent: #FDECD8;
   --accent-foreground: var(--brand-ink);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.015 70);
-  --input: oklch(0.92 0.012 70);
+  --destructive: #C0392B;
+  --destructive-foreground: #ffffff;
+  --border: #1A1A1A;
+  --input: #F0EAE3;
   --ring: var(--brand-orange);
   --cream: var(--brand-cream);
   --ink: var(--brand-ink);
 }
 
-.dark {
-  --background: var(--brand-ink);
-  --foreground: var(--brand-cream);
-  --card: oklch(0.22 0.015 60);
-  --card-foreground: var(--brand-cream);
-  --popover: oklch(0.22 0.015 60);
-  --popover-foreground: var(--brand-cream);
-  --primary: var(--brand-orange);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: var(--brand-navy);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.26 0.015 60);
-  --muted-foreground: oklch(0.7 0.02 60);
-  --accent: oklch(0.3 0.04 60);
-  --accent-foreground: var(--brand-cream);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: var(--brand-orange);
-}
-
 @layer base {
-  * { border-color: var(--color-border); }
-  html { font-family: var(--font-sans); }
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+  html {
+    font-family: var(--font-sans);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
 }
+
+/* ─── Retro noise texture overlay ─── */
+.retro-noise {
+  position: relative;
+}
+.retro-noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/* Speed lines animation */
+@keyframes speedline {
+  0%   { opacity: 0.3; transform: scaleX(0.7); }
+  50%  { opacity: 0.9; transform: scaleX(1); }
+  100% { opacity: 0.3; transform: scaleX(0.7); }
+}
+.speed-line {
+  animation: speedline 1.8s ease-in-out infinite;
+}
+.speed-line:nth-child(2) { animation-delay: 0.15s; }
+.speed-line:nth-child(3) { animation-delay: 0.3s; }
+.speed-line:nth-child(4) { animation-delay: 0.45s; }
+.speed-line:nth-child(5) { animation-delay: 0.6s; }

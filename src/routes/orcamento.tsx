@@ -1,41 +1,41 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { SiteShell } from "@/components/SiteShell";
-import { submitForm } from "@/lib/forms.functions";
-import { Loader2, Send } from "lucide-react";
+import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
+import { SiteShell } from '@/components/SiteShell';
+import { WaveDivider } from '@/components/WaveDivider';
+import { RetroCard } from '@/components/RetroCard';
+import { submitForm } from '@/lib/forms.functions';
+import { Loader2, Send } from 'lucide-react';
 
-const searchSchema = z.object({
-  servico: z.string().optional(),
-});
+const searchSchema = z.object({ servico: z.string().optional() });
 
-export const Route = createFileRoute("/orcamento")({
+export const Route = createFileRoute('/orcamento')({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Solicite seu orçamento — Cajuna Studio" },
-      { name: "description", content: "Peça um orçamento personalizado para identidade visual ou pacote de posts." },
-      { property: "og:title", content: "Orçamento — Cajuna Studio" },
-      { property: "og:description", content: "Solicite seu orçamento com a Cajuna." },
+      { title: 'Solicite seu orçamento — Cajuna Studio' },
+      { name: 'description', content: 'Peça um orçamento personalizado para identidade visual ou pacote de posts.' },
+      { property: 'og:title', content: 'Orçamento — Cajuna Studio' },
+      { property: 'og:description', content: 'Solicite seu orçamento com a Cajuna.' },
     ],
   }),
   component: Orcamento,
 });
 
 const SERVICOS = [
-  "Identidade Visual",
-  "Pacote Areia",
-  "Pacote Ventania",
-  "Pacote Caju",
-  "Design de Estampas / Produtos",
-  "Embalagens / Rótulos",
-  "Criativos para Anúncios",
-  "Kit Impressos",
-  "Kit PDV",
-  "Conversar com uma pessoa",
-  "Outro",
+  'Identidade Visual',
+  'Pacote Areia',
+  'Pacote Ventania',
+  'Pacote Caju',
+  'Design de Estampas / Produtos',
+  'Embalagens / Rótulos',
+  'Criativos para Anúncios',
+  'Kit Impressos',
+  'Kit PDV',
+  'Conversar com uma pessoa',
+  'Outro',
 ];
 
 function Orcamento() {
@@ -48,107 +48,114 @@ function Orcamento() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const fields = {
-      nome: String(fd.get("nome") || ""),
-      email: String(fd.get("email") || ""),
-      whatsapp: String(fd.get("whatsapp") || ""),
-      servico: String(fd.get("servico") || ""),
-      mensagem: String(fd.get("mensagem") || ""),
+      nome: String(fd.get('nome') || ''),
+      email: String(fd.get('email') || ''),
+      whatsapp: String(fd.get('whatsapp') || ''),
+      servico: String(fd.get('servico') || ''),
+      mensagem: String(fd.get('mensagem') || ''),
     };
     if (!fields.nome || !fields.email || !fields.servico) {
-      toast.error("Preencha nome, e-mail e serviço de interesse.");
+      toast.error('Preencha nome, e-mail e serviço de interesse.');
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(fields.email)) {
-      toast.error("E-mail inválido.");
+      toast.error('E-mail inválido.');
       return;
     }
-    const kind = fields.servico === "Conversar com uma pessoa" ? "contratacao" : "orcamento";
+    const kind = fields.servico === 'Conversar com uma pessoa' ? 'contratacao' : 'orcamento';
     setLoading(true);
     try {
       await submit({ data: { kind, fields } });
       setDone(true);
-      toast.success("Recebido! Em breve respondemos com tudo.");
+      toast.success('Recebido! Em breve respondemos com tudo.');
       (e.target as HTMLFormElement).reset();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao enviar.");
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar.');
     } finally {
       setLoading(false);
     }
   }
 
+  const fieldCls = 'w-full px-4 py-3 rounded-xl bg-[#FFF8F2] border-2 border-[#1A1A1A] focus:border-[#E97933] focus:outline-none focus:ring-2 focus:ring-[#E97933]/20 transition font-medium';
+
   return (
     <SiteShell>
-      <section className="mx-auto max-w-3xl px-5 pt-12 pb-20">
-        <span className="text-sm font-semibold uppercase tracking-wider text-primary">orçamento</span>
-        <h1 className="mt-3 text-5xl md:text-6xl font-extrabold leading-tight">
-          Vamos <span className="text-secondary">conversar</span>?
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Conta o que você precisa e respondemos rapidinho com um orçamento personalizado.
-        </p>
-
-        <form onSubmit={onSubmit} className="mt-10 grid gap-5 bg-card border border-border rounded-3xl p-6 md:p-8">
-          <Field label="Seu nome *" name="nome" required />
-          <div className="grid sm:grid-cols-2 gap-5">
-            <Field label="E-mail *" name="email" type="email" required />
-            <Field label="WhatsApp" name="whatsapp" placeholder="(00) 00000-0000" />
-          </div>
-          <label className="block">
-            <span className="block text-sm font-semibold mb-1.5">Serviço de interesse *</span>
-            <select
-              name="servico"
-              required
-              defaultValue={servico ?? ""}
-              className="w-full px-4 py-3 rounded-xl bg-background border border-border focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-            >
-              <option value="" disabled>Escolha uma opção</option>
-              {SERVICOS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          <Field
-            label="Mensagem"
-            name="mensagem"
-            textarea
-            placeholder="Conta um pouquinho sobre o seu projeto..."
-          />
-
-          <button
-            type="submit"
-            disabled={loading || done}
-            className="mt-2 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition disabled:opacity-60"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-            {done ? "Enviado ✓" : loading ? "Enviando..." : "Enviar pedido"}
-          </button>
-          <p className="text-xs text-muted-foreground text-center">
-            Os dados são enviados direto pra nossa planilha — sem spam, prometido.
+      {/* Header */}
+      <section className="retro-noise" style={{ backgroundColor: '#2D5F8A' }}>
+        <div className="mx-auto max-w-3xl px-5 pt-14 pb-4">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">orçamento</span>
+          <h1 className="mt-3 text-5xl md:text-6xl font-black text-white leading-tight">
+            Vamos <span style={{ color: '#E97933' }}>conversar</span>?
+          </h1>
+          <p className="mt-4 text-lg text-white/70">
+            Conta o que você precisa e respondemos rapidinho com um orçamento personalizado.
           </p>
-        </form>
+        </div>
+        <WaveDivider fill="#FFF8F2" />
+      </section>
+
+      {/* Form */}
+      <section className="mx-auto max-w-3xl px-5 py-12 pb-24">
+        <RetroCard className="relative">
+          {/* mascote3 (nuvem + lápis) no canto */}
+          <img
+            src="/mascote3.svg"
+            alt=""
+            aria-hidden
+            className="absolute -bottom-4 -right-4 w-24 h-24 object-contain opacity-80 pointer-events-none"
+          />
+          <form onSubmit={onSubmit} className="grid gap-5">
+            <Field label="Seu nome *" name="nome" required cls={fieldCls} />
+            <div className="grid sm:grid-cols-2 gap-5">
+              <Field label="E-mail *" name="email" type="email" required cls={fieldCls} />
+              <Field label="WhatsApp" name="whatsapp" placeholder="(00) 00000-0000" cls={fieldCls} />
+            </div>
+            <label className="block">
+              <span className="block text-sm font-black mb-1.5">Serviço de interesse *</span>
+              <select
+                name="servico"
+                required
+                defaultValue={servico ?? ''}
+                className={fieldCls}
+              >
+                <option value="" disabled>Escolha uma opção</option>
+                {SERVICOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <Field
+              label="Mensagem"
+              name="mensagem"
+              textarea
+              placeholder="Conta um pouquinho sobre o seu projeto..."
+              cls={fieldCls}
+            />
+            <button
+              type="submit"
+              disabled={loading || done}
+              className="mt-2 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 border-[#1A1A1A] bg-[#E97933] text-[#1A1A1A] font-black hover:bg-[#d4692a] transition-colors disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+              {done ? 'Enviado ✓' : loading ? 'Enviando...' : 'Enviar pedido'}
+            </button>
+            <p className="text-xs text-[#1A1A1A]/50 text-center font-medium">
+              Os dados são enviados direto pra nossa planilha — sem spam, prometido.
+            </p>
+          </form>
+        </RetroCard>
       </section>
     </SiteShell>
   );
 }
 
 function Field({
-  label,
-  name,
-  type = "text",
-  textarea = false,
-  placeholder,
-  required = false,
+  label, name, type = 'text', textarea = false, placeholder, required = false, cls,
 }: {
-  label: string;
-  name: string;
-  type?: string;
-  textarea?: boolean;
-  placeholder?: string;
-  required?: boolean;
+  label: string; name: string; type?: string; textarea?: boolean;
+  placeholder?: string; required?: boolean; cls: string;
 }) {
-  const cls =
-    "w-full px-4 py-3 rounded-xl bg-background border border-border focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition";
   return (
     <label className="block">
-      <span className="block text-sm font-semibold mb-1.5">{label}</span>
+      <span className="block text-sm font-black mb-1.5">{label}</span>
       {textarea ? (
         <textarea name={name} rows={5} placeholder={placeholder} required={required} className={cls} maxLength={4000} />
       ) : (
