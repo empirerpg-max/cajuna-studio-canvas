@@ -12,8 +12,12 @@ type Props = {
 export function WaveDivider({ fill = '#FFF8F2', flip = false, className = '' }: Props) {
   return (
     <div
-      className={`w-full overflow-hidden leading-none ${className}`}
-      style={{ transform: flip ? 'scaleX(-1)' : undefined }}
+      className={`w-full overflow-hidden leading-none block ${className}`}
+      style={{
+        transform: flip ? 'scaleX(-1)' : undefined,
+        lineHeight: 0,
+        fontSize: 0,
+      }}
       aria-hidden
     >
       <svg
@@ -21,12 +25,11 @@ export function WaveDivider({ fill = '#FFF8F2', flip = false, className = '' }: 
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="none"
         className="block w-full h-16 md:h-20"
+        style={{ display: 'block', verticalAlign: 'bottom' }}
       >
         <path
           d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1350,20 1440,40 L1440,80 L0,80 Z"
           fill={fill}
-          stroke="#1A1A1A"
-          strokeWidth="2"
         />
       </svg>
     </div>
