@@ -53,6 +53,11 @@ type Question = {
   transitionMessage?: string;
 };
 
+// Remove emojis iniciais do label (ex: "✨ Moderna" → "Moderna")
+function stripEmoji(label: string): string {
+  return label.replace(/^[\p{Emoji}\s]+/u, "").trim();
+}
+
 // ─── Perguntas ───────────────────────────────────────────────────────────────
 
 const QUESTIONS: Question[] = [
@@ -471,6 +476,9 @@ function Briefing() {
   const q = QUESTIONS[step];
   const progress = Math.round(((step + 1) / QUESTIONS.length) * 100);
 
+  // Palavras escolhidas na pergunta personalidade (sem emojis)
+  const personalidadeTags = (checks["personalidade"] ?? []).map(stripEmoji);
+
   // Sincroniza o campo de texto ao mudar de pergunta
   useEffect(() => {
     if (!started || !q) return;
@@ -548,20 +556,17 @@ function Briefing() {
   }
 
   async function handleSubmit() {
-    // Monta payload: todas as respostas em texto
     const payload: Record<string, string> = { ...answers };
 
-    // Garante que a pergunta atual (se texto) é incluída
     if (q && (q.type === "text" || q.type === "email" || q.type === "textarea")) {
       payload[q.id] = value.trim();
     }
 
-    // Multicheck → string separada por vírgula
+    // Multicheck → salva sem emojis na planilha
     Object.entries(checks).forEach(([key, vals]) => {
-      payload[key] = vals.join(", ");
+      payload[key] = vals.map(stripEmoji).join(", ");
     });
 
-    // Upload → lista de nomes dos arquivos
     Object.entries(files).forEach(([key, vals]) => {
       payload[key] = vals.length ? vals.map((f) => f.name).join(", ") : "";
     });
@@ -573,7 +578,6 @@ function Briefing() {
 
     setLoading(true);
     try {
-      // submitForm espera: { kind: "briefing", fields: Record<string, string> }
       await submit({ data: { kind: "briefing", fields: payload } });
       setDone(true);
       toast.success("Briefing enviado! Em breve entramos em contato. 🎉");
@@ -605,7 +609,6 @@ function Briefing() {
     <SiteShell>
       <section className="mx-auto max-w-5xl px-5 pt-12 pb-24">
 
-        {/* Cabeçalho da página — sempre visível */}
         {!done && (
           <div className="mb-8">
             <span className="text-sm font-semibold uppercase tracking-wider text-primary">
@@ -679,7 +682,6 @@ function Briefing() {
         {started && !done && (
           <div className="rounded-[2rem] border border-border bg-card overflow-hidden">
 
-            {/* Barra de progresso */}
             <div className="h-1 w-full bg-muted">
               <motion.div
                 className="h-full bg-primary"
@@ -689,7 +691,6 @@ function Briefing() {
               />
             </div>
 
-            {/* Meta linha */}
             <div className="flex items-center justify-between border-b border-border px-6 py-3 md:px-8">
               <span className="text-sm text-muted-foreground">
                 <span className="font-semibold text-primary">{progress}%</span>{" "}
@@ -700,11 +701,9 @@ function Briefing() {
               </span>
             </div>
 
-            {/* Área de conteúdo */}
             <div className="flex min-h-[480px] items-center px-6 py-10 md:min-h-[520px] md:px-10 md:py-12">
               <AnimatePresence mode="wait" initial={false}>
 
-                {/* Mensagem de transição entre seções */}
                 {transitionMsg && (
                   <motion.div
                     key="transition"
@@ -723,7 +722,6 @@ function Briefing() {
                   </motion.div>
                 )}
 
-                {/* Pergunta ativa */}
                 {!transitionMsg && q && (
                   <motion.div
                     key={q.id}
@@ -733,29 +731,53 @@ function Briefing() {
                     transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
                     className="w-full max-w-3xl"
                   >
-                    {/* Badge de seção */}
                     <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
                       <span>{q.emoji}</span>
                       <span>{q.section}</span>
                       <div className="flex-1 h-px bg-border" />
                     </div>
 
-                    {/* Título */}
                     <h2 className="text-2xl font-extrabold leading-tight tracking-tight md:text-4xl">
                       {q.title}
                     </h2>
 
-                    {/* Hint */}
                     {q.hint && (
                       <div className="mt-5 rounded-2xl border border-border bg-background px-5 py-4 text-sm leading-7 text-muted-foreground whitespace-pre-line">
                         {q.hint}
                       </div>
                     )}
 
-                    {/* Input */}
                     <div className="mt-6">
                       {(q.type === "text" || q.type === "email") && (
                         <>
+                          {/* Para tres_palavras: mostra tags da personalidade como referência */}
+                          {q.id === "tres_palavras" && personalidadeTags.length > 0 && (
+                            <div className="mb-4">
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Suas escolhas anteriores:
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {personalidadeTags.map((tag) => (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                      const current = value.trim();
+                                      const parts = current
+                                        ? current.split(",").map((s) => s.trim()).filter(Boolean)
+                                        : [];
+                                      if (!parts.includes(tag)) {
+                                        setValue([...parts, tag].join(", "));
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary/60 hover:text-primary"
+                                  >
+                                    + {tag}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           <input
                             autoFocus
                             type={q.type}
@@ -840,7 +862,6 @@ function Briefing() {
               </AnimatePresence>
             </div>
 
-            {/* Barra inferior com navegação */}
             {!transitionMsg && (
               <div className="flex items-center justify-between border-t border-border px-6 py-4 md:px-8">
                 <button
