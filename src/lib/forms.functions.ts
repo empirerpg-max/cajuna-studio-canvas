@@ -29,11 +29,7 @@ export const submitForm = createServerFn({ method: "POST" })
 
     const sheet = SHEET_BY_KIND[data.kind];
     const timestamp = new Date().toISOString();
-    // Stable column order: timestamp + flattened "key: value" pairs in a single row
-    const flat = Object.entries(data.fields)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(" | ");
-    const row = [timestamp, ...Object.values(data.fields), flat];
+    const row = [timestamp, ...Object.values(data.fields)];
 
     const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheet}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
 
