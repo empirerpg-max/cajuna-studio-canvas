@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { SiteShell } from "@/components/SiteShell";
 import { submitForm } from "@/lib/forms.functions";
+import { uploadFileToDrive } from "@/lib/upload.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/briefing")({
@@ -53,9 +54,22 @@ type Question = {
   transitionMessage?: string;
 };
 
-// Remove emojis iniciais do label (ex: "✨ Moderna" → "Moderna")
 function stripEmoji(label: string): string {
   return label.replace(/^[\p{Emoji}\s]+/u, "").trim();
+}
+
+// Converte File para base64
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // remove o prefixo "data:...;base64,"
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // ─── Perguntas ───────────────────────────────────────────────────────────────
@@ -460,6 +474,7 @@ const QUESTIONS: Question[] = [
 
 function Briefing() {
   const submit = useServerFn(submitForm);
+  const uploadFile = useServerFn(uploadFileToDrive);
 
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
@@ -475,11 +490,8 @@ function Briefing() {
 
   const q = QUESTIONS[step];
   const progress = Math.round(((step + 1) / QUESTIONS.length) * 100);
-
-  // Palavras escolhidas na pergunta personalidade (sem emojis)
   const personalidadeTags = (checks["personalidade"] ?? []).map(stripEmoji);
 
-  // Sincroniza o campo de texto ao mudar de pergunta
   useEffect(() => {
     if (!started || !q) return;
     if (q.type === "text" || q.type === "email" || q.type === "textarea") {
@@ -489,7 +501,6 @@ function Briefing() {
     }
   }, [step, started]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Valor atual resolvido (para validação)
   const currentValue = useMemo(() => {
     if (!q) return "";
     if (q.type === "multicheck") return (checks[q.id] ?? []).join(", ");
@@ -506,21 +517,16 @@ function Briefing() {
 
   async function goNext() {
     if (!q) return;
-
     if (q.required && !currentValue) {
       toast.error("Preencha essa etapa antes de continuar.");
       return;
     }
-
     persistCurrent();
-
     if (step === QUESTIONS.length - 1) {
       await handleSubmit();
       return;
     }
-
     const next = QUESTIONS[step + 1];
-
     if (q.transitionMessage && next && next.section !== q.section) {
       setTransitionMsg(q.transitionMessage);
       setTimeout(() => {
@@ -535,10 +541,7 @@ function Briefing() {
   }
 
   function goBack() {
-    if (step === 0) {
-      setStarted(false);
-      return;
-    }
+    if (step === 0) { setStarted(false); return; }
     persistCurrent();
     setDirection(-1);
     setStep((s) => s - 1);
@@ -555,29 +558,53 @@ function Briefing() {
     });
   }
 
+  // Faz upload de todos os arquivos para o Drive e retorna links
+  async function uploadAllFiles(): Promise<Record<string, string>> {
+    const result: Record<string, string> = {};
+    for (const [key, fileList] of Object.entries(files)) {
+      if (!fileList.length) { result[key] = ""; continue; }
+      const links: string[] = [];
+      for (const file of fileList) {
+        try {
+          const base64 = await fileToBase64(file);
+          const { link } = await uploadFile({
+            data: { name: file.name, mimeType: file.type || "application/octet-stream", base64 },
+          });
+          links.push(link);
+        } catch {
+          links.push(`[erro: ${file.name}]`);
+        }
+      }
+      result[key] = links.join(" | ");
+    }
+    return result;
+  }
+
   async function handleSubmit() {
     const payload: Record<string, string> = { ...answers };
-
     if (q && (q.type === "text" || q.type === "email" || q.type === "textarea")) {
       payload[q.id] = value.trim();
     }
-
-    // Multicheck → salva sem emojis na planilha
     Object.entries(checks).forEach(([key, vals]) => {
       payload[key] = vals.map(stripEmoji).join(", ");
     });
-
-    Object.entries(files).forEach(([key, vals]) => {
-      payload[key] = vals.length ? vals.map((f) => f.name).join(", ") : "";
-    });
-
     if (!payload.nome || !payload.email) {
       toast.error("Nome e e-mail são obrigatórios.");
       return;
     }
-
     setLoading(true);
     try {
+      // Faz upload dos arquivos primeiro
+      const hasFiles = Object.values(files).some((f) => f.length > 0);
+      if (hasFiles) {
+        toast.loading("Enviando arquivos para o Drive...", { id: "upload" });
+      }
+      const uploadedLinks = await uploadAllFiles();
+      if (hasFiles) toast.dismiss("upload");
+
+      // Mescla links no payload
+      Object.assign(payload, uploadedLinks);
+
       await submit({ data: { kind: "briefing", fields: payload } });
       setDone(true);
       toast.success("Briefing enviado! Em breve entramos em contato. 🎉");
@@ -591,19 +618,11 @@ function Briefing() {
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (!q) return;
     if (q.type === "textarea") {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        void goNext();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void goNext(); }
     } else {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void goNext();
-      }
+      if (e.key === "Enter") { e.preventDefault(); void goNext(); }
     }
   }
-
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <SiteShell>
@@ -611,211 +630,105 @@ function Briefing() {
 
         {!done && (
           <div className="mb-8">
-            <span className="text-sm font-semibold uppercase tracking-wider text-primary">
-              briefing
-            </span>
+            <span className="text-sm font-semibold uppercase tracking-wider text-primary">briefing</span>
             <h1 className="mt-3 text-4xl font-extrabold leading-tight md:text-5xl">
-              Vamos construir sua{" "}
-              <span className="text-secondary">marca juntos</span>.
+              Vamos construir sua <span className="text-secondary">marca juntos</span>.
             </h1>
             <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-              Uma pergunta por vez, com contexto e exemplos para te ajudar a
-              responder com clareza — sem precisar marcar dez reuniões.
+              Uma pergunta por vez, com contexto e exemplos para te ajudar a responder com clareza — sem precisar marcar dez reuniões.
             </p>
           </div>
         )}
 
         {/* TELA DE BOAS-VINDAS */}
         {!started && !done && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-[2rem] border border-border bg-card p-8 md:p-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-[2rem] border border-border bg-card p-8 md:p-12">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-primary">
-                ✦ Identidade Visual
-              </div>
-
-              <h2 className="mt-6 text-3xl font-extrabold leading-tight md:text-5xl">
-                E aí, tudo bom? <br />
-                Bora criar algo único?
-              </h2>
-
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-primary">✦ Identidade Visual</div>
+              <h2 className="mt-6 text-3xl font-extrabold leading-tight md:text-5xl">E aí, tudo bom? <br />Bora criar algo único?</h2>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground md:text-lg">
-                Esse briefing é uma conversa guiada — você responde uma etapa de
-                cada vez, com dicas, exemplos e referências para não travar. Quanto
-                mais cuidado no preenchimento, mais certeiro o resultado.
+                Esse briefing é uma conversa guiada — você responde uma etapa de cada vez, com dicas, exemplos e referências para não travar. Quanto mais cuidado no preenchimento, mais certeiro o resultado.
               </p>
-
               <div className="mt-6 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                {[
-                  "~20 minutos",
-                  `${QUESTIONS.length} etapas`,
-                  "Uma pergunta por vez",
-                  "Salvo automaticamente",
-                ].map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5"
-                  >
-                    {tag === "~20 minutos" && (
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                    )}
+                {["~20 minutos", `${QUESTIONS.length} etapas`, "Uma pergunta por vez", "Salvo automaticamente"].map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+                    {tag === "~20 minutos" && <span className="h-2 w-2 rounded-full bg-green-500" />}
                     {tag}
                   </span>
                 ))}
               </div>
-
-              <button
-                onClick={() => setStarted(true)}
-                className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-4 font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition"
-              >
-                Começar agora
-                <ArrowRight size={18} />
+              <button onClick={() => setStarted(true)} className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-4 font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition">
+                Começar agora <ArrowRight size={18} />
               </button>
             </div>
           </motion.div>
         )}
 
-        {/* WIZARD DE PERGUNTAS */}
+        {/* WIZARD */}
         {started && !done && (
           <div className="rounded-[2rem] border border-border bg-card overflow-hidden">
-
             <div className="h-1 w-full bg-muted">
-              <motion.div
-                className="h-full bg-primary"
-                initial={false}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-              />
+              <motion.div className="h-full bg-primary" initial={false} animate={{ width: `${progress}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
             </div>
-
             <div className="flex items-center justify-between border-b border-border px-6 py-3 md:px-8">
-              <span className="text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">{progress}%</span>{" "}
-                concluído
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {step + 1} / {QUESTIONS.length}
-              </span>
+              <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">{progress}%</span> concluído</span>
+              <span className="text-sm text-muted-foreground">{step + 1} / {QUESTIONS.length}</span>
             </div>
 
             <div className="flex min-h-[480px] items-center px-6 py-10 md:min-h-[520px] md:px-10 md:py-12">
               <AnimatePresence mode="wait" initial={false}>
 
                 {transitionMsg && (
-                  <motion.div
-                    key="transition"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.25 }}
-                    className="w-full text-center"
-                  >
-                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-3xl">
-                      {q?.emoji}
-                    </div>
-                    <h3 className="text-2xl font-bold leading-tight md:text-4xl">
-                      {transitionMsg}
-                    </h3>
+                  <motion.div key="transition" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.25 }} className="w-full text-center">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-3xl">{q?.emoji}</div>
+                    <h3 className="text-2xl font-bold leading-tight md:text-4xl">{transitionMsg}</h3>
                   </motion.div>
                 )}
 
                 {!transitionMsg && q && (
-                  <motion.div
-                    key={q.id}
-                    initial={{ opacity: 0, y: direction > 0 ? 28 : -28 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: direction > 0 ? -28 : 28 }}
-                    transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                    className="w-full max-w-3xl"
-                  >
+                  <motion.div key={q.id} initial={{ opacity: 0, y: direction > 0 ? 28 : -28 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: direction > 0 ? -28 : 28 }} transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }} className="w-full max-w-3xl">
                     <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
-                      <span>{q.emoji}</span>
-                      <span>{q.section}</span>
-                      <div className="flex-1 h-px bg-border" />
+                      <span>{q.emoji}</span><span>{q.section}</span><div className="flex-1 h-px bg-border" />
                     </div>
-
-                    <h2 className="text-2xl font-extrabold leading-tight tracking-tight md:text-4xl">
-                      {q.title}
-                    </h2>
+                    <h2 className="text-2xl font-extrabold leading-tight tracking-tight md:text-4xl">{q.title}</h2>
 
                     {q.hint && (
-                      <div className="mt-5 rounded-2xl border border-border bg-background px-5 py-4 text-sm leading-7 text-muted-foreground whitespace-pre-line">
-                        {q.hint}
-                      </div>
+                      <div className="mt-5 rounded-2xl border border-border bg-background px-5 py-4 text-sm leading-7 text-muted-foreground whitespace-pre-line">{q.hint}</div>
                     )}
 
                     <div className="mt-6">
                       {(q.type === "text" || q.type === "email") && (
                         <>
-                          {/* Para tres_palavras: mostra tags da personalidade como referência */}
                           {q.id === "tres_palavras" && personalidadeTags.length > 0 && (
                             <div className="mb-4">
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Suas escolhas anteriores:
-                              </p>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Suas escolhas anteriores:</p>
                               <div className="flex flex-wrap gap-2">
                                 {personalidadeTags.map((tag) => (
-                                  <button
-                                    key={tag}
-                                    type="button"
+                                  <button key={tag} type="button"
                                     onClick={() => {
-                                      const current = value.trim();
-                                      const parts = current
-                                        ? current.split(",").map((s) => s.trim()).filter(Boolean)
-                                        : [];
-                                      if (!parts.includes(tag)) {
-                                        setValue([...parts, tag].join(", "));
-                                      }
+                                      const parts = value.trim() ? value.trim().split(",").map((s) => s.trim()).filter(Boolean) : [];
+                                      if (!parts.includes(tag)) setValue([...parts, tag].join(", "));
                                     }}
                                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary/60 hover:text-primary"
-                                  >
-                                    + {tag}
-                                  </button>
+                                  >+ {tag}</button>
                                 ))}
                               </div>
                             </div>
                           )}
-                          <input
-                            autoFocus
-                            type={q.type}
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={q.placeholder}
-                            className="w-full rounded-2xl border-2 border-border bg-background px-4 py-4 text-base transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
-                          />
+                          <input autoFocus type={q.type} value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={handleKeyDown} placeholder={q.placeholder}
+                            className="w-full rounded-2xl border-2 border-border bg-background px-4 py-4 text-base transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15" />
                           <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                              Enter ↵
-                            </kbd>
-                            para continuar
+                            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">Enter ↵</kbd> para continuar
                           </p>
                         </>
                       )}
 
                       {q.type === "textarea" && (
                         <>
-                          <textarea
-                            autoFocus
-                            rows={6}
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={q.placeholder}
-                            className="w-full resize-none rounded-2xl border-2 border-border bg-background px-4 py-4 text-base transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
-                          />
+                          <textarea autoFocus rows={6} value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={handleKeyDown} placeholder={q.placeholder}
+                            className="w-full resize-none rounded-2xl border-2 border-border bg-background px-4 py-4 text-base transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15" />
                           <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                              Ctrl
-                            </kbd>
-                            +
-                            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                              Enter ↵
-                            </kbd>
-                            para continuar
+                            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">Ctrl</kbd>+<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">Enter ↵</kbd> para continuar
                           </p>
                         </>
                       )}
@@ -825,22 +738,10 @@ function Briefing() {
                           {q.options?.map((option) => {
                             const active = (checks[q.id] ?? []).includes(option);
                             return (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => toggleOption(option)}
-                                className={cn(
-                                  "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2.5 text-sm font-medium transition",
-                                  active
-                                    ? "border-primary bg-primary/10 text-primary"
-                                    : "border-border bg-background hover:border-primary/50",
-                                )}
-                              >
-                                {active ? (
-                                  <CheckCircle2 size={15} />
-                                ) : (
-                                  <Check size={15} className="opacity-30" />
-                                )}
+                              <button key={option} type="button" onClick={() => toggleOption(option)}
+                                className={cn("inline-flex items-center gap-2 rounded-full border-2 px-4 py-2.5 text-sm font-medium transition",
+                                  active ? "border-primary bg-primary/10 text-primary" : "border-border bg-background hover:border-primary/50")}>
+                                {active ? <CheckCircle2 size={15} /> : <Check size={15} className="opacity-30" />}
                                 {option}
                               </button>
                             );
@@ -849,12 +750,7 @@ function Briefing() {
                       )}
 
                       {q.type === "upload" && (
-                        <UploadField
-                          files={files[q.id] ?? []}
-                          onChange={(nextFiles) =>
-                            setFiles((prev) => ({ ...prev, [q.id]: nextFiles }))
-                          }
-                        />
+                        <UploadField files={files[q.id] ?? []} onChange={(nextFiles) => setFiles((prev) => ({ ...prev, [q.id]: nextFiles }))} />
                       )}
                     </div>
                   </motion.div>
@@ -864,42 +760,19 @@ function Briefing() {
 
             {!transitionMsg && (
               <div className="flex items-center justify-between border-t border-border px-6 py-4 md:px-8">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-                >
-                  <ArrowLeft size={16} />
-                  Voltar
+                <button type="button" onClick={goBack} className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground">
+                  <ArrowLeft size={16} /> Voltar
                 </button>
-
                 <div className="flex items-center gap-3">
                   {q?.skippable && (
-                    <button
-                      type="button"
-                      onClick={() => void goNext()}
-                      className="text-sm font-medium text-muted-foreground transition hover:text-foreground"
-                    >
-                      Pular →
-                    </button>
+                    <button type="button" onClick={() => void goNext()} className="text-sm font-medium text-muted-foreground transition hover:text-foreground">Pular →</button>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => void goNext()}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 active:scale-95 disabled:opacity-60"
-                  >
+                  <button type="button" onClick={() => void goNext()} disabled={loading}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 active:scale-95 disabled:opacity-60">
                     {step === QUESTIONS.length - 1 ? (
-                      <>
-                        {loading ? "Enviando..." : "Enviar briefing"}
-                        <Send size={16} />
-                      </>
+                      <>{loading ? "Enviando..." : "Enviar briefing"}<Send size={16} /></>
                     ) : (
-                      <>
-                        OK
-                        <CornerDownLeft size={16} />
-                      </>
+                      <>OK<CornerDownLeft size={16} /></>
                     )}
                   </button>
                 </div>
@@ -910,55 +783,25 @@ function Briefing() {
 
         {/* TELA DE SUCESSO */}
         {done && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mx-auto max-w-3xl rounded-[2rem] border border-border bg-card p-8 text-center md:p-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+            className="mx-auto max-w-3xl rounded-[2rem] border border-border bg-card p-8 text-center md:p-12">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-green-500/30 bg-green-500/10">
               <CheckCircle2 size={38} className="text-green-500" />
             </div>
-
-            <div className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-green-600">
-              ✦ Briefing recebido!
-            </div>
-
+            <div className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-green-600">✦ Briefing recebido!</div>
             <h2 className="mt-4 text-3xl font-extrabold leading-tight md:text-4xl">
-              Perfeito,{" "}
-              <span className="text-primary">
-                {answers.nome?.split(" ")[0] ?? "cliente"}
-              </span>
-              ! 🎉
+              Perfeito, <span className="text-primary">{answers.nome?.split(" ")[0] ?? "cliente"}</span>! 🎉
             </h2>
-
             <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-              Recebemos tudo com sucesso. Nossa equipe vai analisar cada detalhe
-              com carinho e entrar em contato em breve. Esse cuidado que você teve
-              aqui vai fazer toda a diferença no resultado final. ✨
+              Recebemos tudo com sucesso. Nossa equipe vai analisar cada detalhe com carinho e entrar em contato em breve. ✨
             </p>
-
             <div className="mt-8 rounded-2xl border border-border bg-background p-5 text-left">
-              <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                Resumo do seu briefing
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">Resumo do seu briefing</p>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <span className="font-semibold text-foreground">Nome:</span>{" "}
-                  {answers.nome || "—"}
-                </li>
-                <li>
-                  <span className="font-semibold text-foreground">E-mail:</span>{" "}
-                  {answers.email || "—"}
-                </li>
-                <li>
-                  <span className="font-semibold text-foreground">Marca:</span>{" "}
-                  {answers.nome_marca || "—"}
-                </li>
-                <li>
-                  <span className="font-semibold text-foreground">3 palavras-chave:</span>{" "}
-                  {answers.tres_palavras || "—"}
-                </li>
+                <li><span className="font-semibold text-foreground">Nome:</span> {answers.nome || "—"}</li>
+                <li><span className="font-semibold text-foreground">E-mail:</span> {answers.email || "—"}</li>
+                <li><span className="font-semibold text-foreground">Marca:</span> {answers.nome_marca || "—"}</li>
+                <li><span className="font-semibold text-foreground">3 palavras-chave:</span> {answers.tres_palavras || "—"}</li>
               </ul>
             </div>
           </motion.div>
@@ -970,26 +813,12 @@ function Briefing() {
 
 // ─── Upload Field ─────────────────────────────────────────────────────────────
 
-function UploadField({
-  files,
-  onChange,
-}: {
-  files: File[];
-  onChange: (files: File[]) => void;
-}) {
+function UploadField({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
   return (
     <div className="space-y-4">
       <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border bg-background px-6 py-10 text-center transition hover:border-primary/60 hover:bg-primary/5">
-        <input
-          type="file"
-          multiple
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(e) => {
-            if (!e.target.files) return;
-            onChange([...files, ...Array.from(e.target.files)]);
-          }}
-        />
+        <input type="file" multiple accept="image/*,application/pdf" className="hidden"
+          onChange={(e) => { if (!e.target.files) return; onChange([...files, ...Array.from(e.target.files)]); }} />
         <Upload size={28} className="text-primary" />
         <div className="text-sm">
           <span className="font-semibold text-primary">Clique para enviar</span>{" "}
@@ -997,22 +826,12 @@ function UploadField({
         </div>
         <p className="text-xs text-muted-foreground">PNG, JPG, PDF</p>
       </label>
-
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {files.map((file, i) => (
-            <div
-              key={`${file.name}-${i}`}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm"
-            >
+            <div key={`${file.name}-${i}`} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm">
               <span className="max-w-[200px] truncate">📎 {file.name}</span>
-              <button
-                type="button"
-                onClick={() => onChange(files.filter((_, idx) => idx !== i))}
-                className="text-muted-foreground transition hover:text-destructive"
-              >
-                <X size={14} />
-              </button>
+              <button type="button" onClick={() => onChange(files.filter((_, idx) => idx !== i))} className="text-muted-foreground transition hover:text-destructive"><X size={14} /></button>
             </div>
           ))}
         </div>
