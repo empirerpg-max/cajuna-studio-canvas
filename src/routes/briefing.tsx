@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { SiteShell } from "@/components/SiteShell";
 import { submitForm } from "@/lib/forms.functions";
-import { uploadFileToDrive } from "@/lib/upload.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/briefing")({
@@ -109,7 +108,6 @@ const SECTIONS = Array.from(new Set(QUESTIONS.map((q) => q.section)));
 
 function Briefing() {
   const submit = useServerFn(submitForm);
-  const uploadFile = useServerFn(uploadFileToDrive);
   const printRef = useRef<HTMLDivElement>(null);
 
   const [started, setStarted] = useState(false);
@@ -179,19 +177,20 @@ function Briefing() {
     });
   }
 
-  async function uploadAllFiles(): Promise<Record<string, string>> {
-    const result: Record<string, string> = {};
+  // Converte todos os arquivos em base64 para envio via Apps Script
+  async function prepareFilesPayload(): Promise<
+    Record<string, Array<{ name: string; mimeType: string; base64: string }>>
+  > {
+    const result: Record<string, Array<{ name: string; mimeType: string; base64: string }>> = {};
     for (const [key, fileList] of Object.entries(files)) {
-      if (!fileList.length) { result[key] = ""; continue; }
-      const links: string[] = [];
-      for (const file of fileList) {
-        try {
-          const base64 = await fileToBase64(file);
-          const { link } = await uploadFile({ data: { name: file.name, mimeType: file.type || "application/octet-stream", base64 } });
-          links.push(link);
-        } catch { links.push(`[erro: ${file.name}]`); }
-      }
-      result[key] = links.join(" | ");
+      if (!fileList.length) continue;
+      result[key] = await Promise.all(
+        fileList.map(async (file) => ({
+          name: file.name,
+          mimeType: file.type || "application/octet-stream",
+          base64: await fileToBase64(file),
+        }))
+      );
     }
     return result;
   }
@@ -201,14 +200,18 @@ function Briefing() {
     if (q && (q.type === "text" || q.type === "email" || q.type === "textarea")) payload[q.id] = value.trim();
     Object.entries(checks).forEach(([key, vals]) => { payload[key] = vals.map(stripEmoji).join(", "); });
     if (!payload.nome || !payload.email) { toast.error("Nome e e-mail são obrigatórios."); return; }
+
     setLoading(true);
     try {
       const hasFiles = Object.values(files).some((f) => f.length > 0);
       if (hasFiles) toast.loading("Enviando arquivos para o Drive...", { id: "upload" });
-      const uploadedLinks = await uploadAllFiles();
+
+      const filesPayload = await prepareFilesPayload();
+
       if (hasFiles) toast.dismiss("upload");
-      Object.assign(payload, uploadedLinks);
-      await submit({ data: { kind: "briefing", fields: payload } });
+
+      await submit({ data: { kind: "briefing", fields: payload, files: filesPayload } });
+
       setFinalPayload(payload);
       setDone(true);
       toast.success("Briefing enviado! Em breve entramos em contato. 🎉");
@@ -400,7 +403,6 @@ function Briefing() {
         {done && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
-            {/* Cabeçalho de sucesso */}
             <div className="mb-8 flex flex-col items-center text-center no-print">
               <div className="flex h-20 w-20 items-center justify-center rounded-full border border-green-500/30 bg-green-500/10">
                 <CheckCircle2 size={38} className="text-green-500" />
@@ -417,10 +419,7 @@ function Briefing() {
               </button>
             </div>
 
-            {/* RESUMO COMPLETO — alvo do print */}
             <div id="briefing-pdf" ref={printRef} className="space-y-6">
-
-              {/* Cabeçalho visível só no PDF */}
               <div className="hidden print:block mb-8 border-b border-gray-200 pb-6">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Cajuna Studio</p>
                 <h1 className="mt-1 text-2xl font-extrabold">{finalPayload.nome_marca || finalPayload.nome} — Briefing</h1>
@@ -440,7 +439,6 @@ function Briefing() {
                       <span className="text-lg">{sectionEmoji}</span>
                       <h3 className="font-bold uppercase tracking-wider text-primary text-xs">{section}</h3>
                     </div>
-
                     <div className="divide-y divide-border">
                       {sectionQs.map((q) => {
                         const val = finalPayload[q.id];
@@ -452,7 +450,6 @@ function Briefing() {
                           </div>
                         );
                       })}
-
                       {uploadQs.map((q) => {
                         const val = finalPayload[q.id];
                         if (!val) return null;
@@ -476,7 +473,6 @@ function Briefing() {
                 );
               })}
 
-              {/* Rodapé */}
               <div className="rounded-[1.5rem] border border-border bg-card px-6 py-5 text-center">
                 <p className="text-xs text-muted-foreground">
                   Briefing enviado por <span className="font-semibold text-foreground">{finalPayload.nome}</span> — {finalPayload.email} · Cajuna Studio
@@ -484,7 +480,6 @@ function Briefing() {
               </div>
             </div>
 
-            {/* Botão inferior */}
             <div className="mt-8 flex justify-center no-print">
               <button onClick={handlePrint} className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-4 font-semibold text-primary-foreground transition hover:opacity-90 active:scale-95">
                 <Download size={18} /> Salvar como PDF
