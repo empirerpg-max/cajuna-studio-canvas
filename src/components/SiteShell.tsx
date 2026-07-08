@@ -1,11 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import { Menu, X, Instagram } from 'lucide-react';
+import { Menu, X, Instagram, UserCircle } from 'lucide-react';
 
 const nav = [
   { to: '/', label: 'Home' },
   { to: '/portfolio', label: 'Portfólio' },
-  { to: '/briefing', label: 'Briefing' },
   { to: '/orcamento', label: 'Orçamento' },
 ] as const;
 
@@ -41,6 +40,18 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 {n.label}
               </Link>
             ))}
+
+            {/* Área do Cliente — destaque especial */}
+            <Link
+              to="/area-cliente"
+              className="ml-1 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              activeProps={{
+                className: 'ml-1 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold bg-[#E97933] text-[#1A1A1A] border-2 border-[#E97933]',
+              }}
+            >
+              <UserCircle size={15} />
+              Área do Cliente
+            </Link>
           </nav>
 
           {/* CTA desktop */}
@@ -77,6 +88,17 @@ export function SiteShell({ children }: { children: ReactNode }) {
                   {n.label}
                 </Link>
               ))}
+
+              {/* Área do Cliente mobile */}
+              <Link
+                to="/area-cliente"
+                onClick={() => setOpen(false)}
+                className="px-4 py-3 rounded-xl text-sm font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                activeProps={{ className: 'px-4 py-3 rounded-xl text-sm font-bold bg-[#E97933] text-[#1A1A1A] flex items-center gap-2' }}
+              >
+                <UserCircle size={15} /> Área do Cliente
+              </Link>
+
               <Link
                 to="/orcamento"
                 onClick={() => setOpen(false)}
