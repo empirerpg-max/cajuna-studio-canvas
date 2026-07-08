@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as OrcamentoRouteImport } from './routes/orcamento'
 import { Route as BriefingRouteImport } from './routes/briefing'
+import { Route as AreaClienteRouteImport } from './routes/area-cliente'
 import { Route as IndexRouteImport } from './routes/index'
 
 const PortfolioRoute = PortfolioRouteImport.update({
@@ -29,6 +30,11 @@ const BriefingRoute = BriefingRouteImport.update({
   path: '/briefing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AreaClienteRoute = AreaClienteRouteImport.update({
+  id: '/area-cliente',
+  path: '/area-cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,12 +43,14 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/area-cliente': typeof AreaClienteRoute
   '/briefing': typeof BriefingRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/area-cliente': typeof AreaClienteRoute
   '/briefing': typeof BriefingRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/area-cliente': typeof AreaClienteRoute
   '/briefing': typeof BriefingRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/briefing' | '/orcamento' | '/portfolio'
+  fullPaths: '/' | '/area-cliente' | '/briefing' | '/orcamento' | '/portfolio'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/briefing' | '/orcamento' | '/portfolio'
-  id: '__root__' | '/' | '/briefing' | '/orcamento' | '/portfolio'
+  to: '/' | '/area-cliente' | '/briefing' | '/orcamento' | '/portfolio'
+  id: '__root__' | '/' | '/area-cliente' | '/briefing' | '/orcamento' | '/portfolio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AreaClienteRoute: typeof AreaClienteRoute
   BriefingRoute: typeof BriefingRoute
   OrcamentoRoute: typeof OrcamentoRoute
   PortfolioRoute: typeof PortfolioRoute
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/area-cliente': {
+      id: '/area-cliente'
+      path: '/area-cliente'
+      fullPath: '/area-cliente'
+      preLoaderRoute: typeof AreaClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AreaClienteRoute: AreaClienteRoute,
   BriefingRoute: BriefingRoute,
   OrcamentoRoute: OrcamentoRoute,
   PortfolioRoute: PortfolioRoute,
