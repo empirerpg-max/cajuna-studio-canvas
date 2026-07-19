@@ -120,7 +120,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
             <img src="/logocajuna111.svg" alt="Cajuna Studio" className="h-12 w-auto brightness-0 invert" />
           </div>
           <div className="md:text-center text-sm font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            © {new Date().getFullYear()} Cajuna Studio. Feito com afeto.
+            © {new Date().getFullYear()} Cajuna Studio. Identidade que dá frutos.
           </div>
           <div className="md:justify-self-end flex items-center gap-3">
             <a
