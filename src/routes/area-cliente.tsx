@@ -10,7 +10,6 @@ import {
   EyeOff,
   CheckCircle,
   CheckCircle2,
-  UserCircle,
   Download,
 } from 'lucide-react';
 
@@ -71,11 +70,15 @@ function AreaCliente() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!codigo.trim()) return;
+    const cod = codigo.trim();
+    if (!cod) return;
     setLoadingLogin(true);
     setLoginError('');
     try {
-      const res = await fetch(`${API_URL}?action=login&codigo=${encodeURIComponent(codigo.trim())}`);
+      // Tenta login pelo codigo_unico (col B) primeiro, depois pelo codigo_contrato (col A)
+      const res = await fetch(
+        `${API_URL}?action=login&codigo=${encodeURIComponent(cod)}`
+      );
       const json = await res.json();
       if (json.success && json.cliente) {
         setClienteUser(json.cliente);
@@ -95,7 +98,9 @@ function AreaCliente() {
   async function fetchClienteData(codigoContrato: string) {
     setLoadingData(true);
     try {
-      const res = await fetch(`${API_URL}?action=cliente&codigo=${encodeURIComponent(codigoContrato)}`);
+      const res = await fetch(
+        `${API_URL}?action=cliente&codigo=${encodeURIComponent(codigoContrato)}`
+      );
       const json = await res.json();
       if (json.success && json.data) {
         setClienteData(json.data);
@@ -124,7 +129,9 @@ function AreaCliente() {
           <div className="text-center mb-10">
             <div className="text-5xl mb-4">🔐</div>
             <h1 className="text-3xl font-black text-[#1A1A1A]">Área do Cliente</h1>
-            <p className="mt-2 text-[#1A1A1A]/60">Digite seu código de contrato para acessar.</p>
+            <p className="mt-2 text-[#1A1A1A]/60">
+              Digite seu <strong>código único</strong> ou <strong>código do contrato</strong> para acessar.
+            </p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative">
@@ -132,7 +139,8 @@ function AreaCliente() {
                 type={showCodigo ? 'text' : 'password'}
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                placeholder="Código do contrato"
+                placeholder="Seu código de acesso"
+                autoComplete="off"
                 className="w-full rounded-2xl border-2 bg-white px-5 py-4 pr-12 text-base font-medium text-[#1A1A1A] outline-none transition focus:border-[#E97933]"
                 style={{ borderColor: loginError ? '#e77f89' : '#e3e7f7' }}
               />
@@ -140,11 +148,14 @@ function AreaCliente() {
                 type="button"
                 onClick={() => setShowCodigo((v) => !v)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#1A1A1A]/40 hover:text-[#1A1A1A]/70 transition"
+                aria-label={showCodigo ? 'Ocultar código' : 'Mostrar código'}
               >
                 {showCodigo ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {loginError && <p className="text-sm font-bold text-[#e77f89]">{loginError}</p>}
+            {loginError && (
+              <p className="text-sm font-bold" style={{ color: '#e77f89' }}>{loginError}</p>
+            )}
             <button
               type="submit"
               disabled={loadingLogin}
@@ -160,9 +171,10 @@ function AreaCliente() {
   }
 
   const etapaIndex = ETAPAS.indexOf(clienteData?.etapa_atual ?? 'Briefing');
-  const progresso = typeof clienteData?.progresso === 'number'
-    ? clienteData.progresso
-    : parseInt(String(clienteData?.progresso ?? '0'), 10) || 0;
+  const progresso =
+    typeof clienteData?.progresso === 'number'
+      ? clienteData.progresso
+      : parseInt(String(clienteData?.progresso ?? '0'), 10) || 0;
 
   return (
     <SiteShell>
@@ -185,7 +197,10 @@ function AreaCliente() {
           </button>
         </div>
 
-        <nav className="mb-8 flex gap-1 overflow-x-auto rounded-2xl border p-1" style={{ borderColor: '#e3e7f7' }}>
+        <nav
+          className="mb-8 flex gap-1 overflow-x-auto rounded-2xl border p-1"
+          style={{ borderColor: '#e3e7f7' }}
+        >
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -210,10 +225,14 @@ function AreaCliente() {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
           >
+            {/* INÍCIO */}
             {view === 'inicio' && (
               <div className="space-y-4">
                 {loadingData ? (
-                  <div className="rounded-2xl border p-8 text-center text-[#1A1A1A]/40 font-medium" style={{ borderColor: '#e3e7f7' }}>
+                  <div
+                    className="rounded-2xl border p-8 text-center text-[#1A1A1A]/40 font-medium"
+                    style={{ borderColor: '#e3e7f7' }}
+                  >
                     Carregando seus dados...
                   </div>
                 ) : (
@@ -224,7 +243,10 @@ function AreaCliente() {
                         <span className="text-2xl font-black" style={{ color: '#E97933' }}>
                           {clienteData?.etapa_atual ?? 'Briefing'}
                         </span>
-                        <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: '#FFF3EB', color: '#E97933' }}>
+                        <span
+                          className="rounded-full px-3 py-1 text-xs font-bold"
+                          style={{ background: '#FFF3EB', color: '#E97933' }}
+                        >
                           {clienteData?.status_projeto ?? 'Em andamento'}
                         </span>
                       </div>
@@ -234,7 +256,9 @@ function AreaCliente() {
                           style={{ width: `${progresso}%`, background: '#E97933' }}
                         />
                       </div>
-                      <p className="mt-1 text-right text-xs font-bold text-[#1A1A1A]/40">{progresso}%</p>
+                      <p className="mt-1 text-right text-xs font-bold text-[#1A1A1A]/40">
+                        {progresso}%
+                      </p>
                       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
                         {ETAPAS.map((etapa, i) => (
                           <div key={etapa} className="flex min-w-fit flex-col items-center gap-1">
@@ -255,18 +279,30 @@ function AreaCliente() {
                         ))}
                       </div>
                     </div>
+
                     {clienteData?.mensagem_equipe && (
-                      <div className="rounded-2xl border p-5" style={{ borderColor: '#e3e7f7', background: '#FFFAF6' }}>
-                        <p className="text-xs font-bold uppercase tracking-wide text-[#E97933] mb-1">Mensagem da equipe</p>
-                        <p className="text-sm text-[#1A1A1A]/70 leading-relaxed">{clienteData.mensagem_equipe}</p>
+                      <div
+                        className="rounded-2xl border p-5"
+                        style={{ borderColor: '#e3e7f7', background: '#FFFAF6' }}
+                      >
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#E97933] mb-1">
+                          Mensagem da equipe
+                        </p>
+                        <p className="text-sm text-[#1A1A1A]/70 leading-relaxed">
+                          {clienteData.mensagem_equipe}
+                        </p>
                       </div>
                     )}
+
                     {clienteData?.proxima_reuniao && (
                       <div className="rounded-2xl border p-5" style={{ borderColor: '#e3e7f7' }}>
-                        <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">Próxima reunião</p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">
+                          Próxima reunião
+                        </p>
                         <p className="font-black text-[#1A1A1A]">{clienteData.proxima_reuniao}</p>
                       </div>
                     )}
+
                     {clienteData?.prazo_etapa && (
                       <div
                         className="rounded-2xl border p-5"
@@ -275,10 +311,17 @@ function AreaCliente() {
                           background: clienteData._prazo_info?.atrasado ? '#FFF5F5' : undefined,
                         }}
                       >
-                        <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">Prazo da etapa</p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">
+                          Prazo da etapa
+                        </p>
                         <p className="font-black text-[#1A1A1A]">{clienteData.prazo_etapa}</p>
                         {clienteData._prazo_info && (
-                          <p className={cn('text-xs font-bold mt-1', clienteData._prazo_info.atrasado ? 'text-[#e77f89]' : 'text-[#E97933]')}>
+                          <p
+                            className={cn(
+                              'text-xs font-bold mt-1',
+                              clienteData._prazo_info.atrasado ? 'text-[#e77f89]' : 'text-[#E97933]'
+                            )}
+                          >
                             {clienteData._prazo_info.atrasado
                               ? `⚠️ ${Math.abs(clienteData._prazo_info.diasRestantes)} dias de atraso`
                               : `${clienteData._prazo_info.diasRestantes} dias restantes`}
@@ -291,6 +334,7 @@ function AreaCliente() {
               </div>
             )}
 
+            {/* PERFIL */}
             {view === 'perfil' && (
               <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: '#e3e7f7' }}>
                 <h2 className="font-black text-[#1A1A1A]">Seu Perfil</h2>
@@ -301,14 +345,21 @@ function AreaCliente() {
                   { label: 'E-mail', value: clienteData?.email_contato ?? '—' },
                   { label: 'Código do contrato', value: clienteUser?.codigo_contrato },
                 ].map(({ label, value }) => (
-                  <div key={label} className="border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: '#f0f0f0' }}>
-                    <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40">{label}</p>
+                  <div
+                    key={label}
+                    className="border-b pb-3 last:border-0 last:pb-0"
+                    style={{ borderColor: '#f0f0f0' }}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40">
+                      {label}
+                    </p>
                     <p className="mt-0.5 font-bold text-[#1A1A1A]">{value ?? '—'}</p>
                   </div>
                 ))}
               </div>
             )}
 
+            {/* CONTRATOS */}
             {view === 'contratos' && (
               <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: '#e3e7f7' }}>
                 <h2 className="font-black text-[#1A1A1A]">Contrato</h2>
@@ -317,21 +368,33 @@ function AreaCliente() {
                   { label: 'Data de início', value: clienteData?.data_contrato ?? '—' },
                   { label: 'Serviço', value: clienteData?.servico ?? clienteUser?.tipo },
                 ].map(({ label, value }) => (
-                  <div key={label} className="border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: '#f0f0f0' }}>
-                    <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40">{label}</p>
+                  <div
+                    key={label}
+                    className="border-b pb-3 last:border-0 last:pb-0"
+                    style={{ borderColor: '#f0f0f0' }}
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40">
+                      {label}
+                    </p>
                     <p className="mt-0.5 font-bold text-[#1A1A1A]">{value}</p>
                   </div>
                 ))}
               </div>
             )}
 
+            {/* BRIEFING */}
             {view === 'briefing' && clienteUser && (
               <>
                 {briefingStatus === 'enviado' ? (
-                  <div className="rounded-2xl border p-8 text-center" style={{ borderColor: '#e3e7f7' }}>
+                  <div
+                    className="rounded-2xl border p-8 text-center"
+                    style={{ borderColor: '#e3e7f7' }}
+                  >
                     <CheckCircle2 size={40} className="mx-auto mb-4" style={{ color: '#E97933' }} />
                     <h2 className="text-xl font-black text-[#1A1A1A]">Briefing já enviado ✅</h2>
-                    <p className="mt-2 text-[#1A1A1A]/60">Recebemos seu briefing. Nossa equipe está analisando tudo com carinho.</p>
+                    <p className="mt-2 text-[#1A1A1A]/60">
+                      Recebemos seu briefing. Nossa equipe está analisando tudo com carinho.
+                    </p>
                   </div>
                 ) : (
                   <BriefingWizard
@@ -342,27 +405,34 @@ function AreaCliente() {
               </>
             )}
 
+            {/* ARQUIVOS */}
             {view === 'arquivos' && (
               <div className="rounded-2xl border p-6" style={{ borderColor: '#e3e7f7' }}>
                 <h2 className="font-black text-[#1A1A1A] mb-4">Arquivos do Projeto</h2>
                 {clienteData?.arquivos_links ? (
                   <div className="space-y-2">
-                    {clienteData.arquivos_links.split('\n').filter(Boolean).map((link, i) => (
-                      <a
-                        key={i}
-                        href={link.trim()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-xl border p-4 text-sm font-bold transition hover:border-[#E97933]/40"
-                        style={{ borderColor: '#e3e7f7', color: '#E97933' }}
-                      >
-                        <Download size={16} />
-                        {link.trim()}
-                      </a>
-                    ))}
+                    {clienteData.arquivos_links
+                      .split('\n')
+                      .filter(Boolean)
+                      .map((link, i) => (
+                        <a
+                          key={i}
+                          href={link.trim()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 rounded-xl border p-4 text-sm font-bold transition hover:border-[#E97933]/40"
+                          style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+                        >
+                          <Download size={16} />
+                          {link.trim()}
+                        </a>
+                      ))}
                   </div>
                 ) : (
-                  <p className="text-[#1A1A1A]/40 font-medium text-sm">Nenhum arquivo disponível ainda. Assim que os entregáveis estiverem prontos, aparecerão aqui.</p>
+                  <p className="text-[#1A1A1A]/40 font-medium text-sm">
+                    Nenhum arquivo disponível ainda. Assim que os entregáveis estiverem prontos,
+                    aparecerão aqui.
+                  </p>
                 )}
               </div>
             )}
