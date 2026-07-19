@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { ArrowRight, Check, MessageCircle, Sparkles } from 'lucide-react';
 import { SiteShell } from '@/components/SiteShell';
 import { WaveDivider } from '@/components/WaveDivider';
@@ -89,9 +89,9 @@ const designs = [
   { titulo: 'Kit PDV', preco: 'R$ 200', desc: 'Banner, fachada simples, adesivagem de vitrine.' },
 ];
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.55, delay: i * 0.07, ease: 'easeOut' } }),
+  visible: (i: number = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.55, delay: i * 0.07, ease: 'easeOut' } }),
 };
 
 function Home() {
