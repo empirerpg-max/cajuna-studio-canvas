@@ -33,12 +33,9 @@ type FormPayload = z.infer<typeof schema>;
 export const submitForm = createServerFn({ method: "POST" })
   .inputValidator((data: FormPayload) => schema.parse(data))
   .handler(async ({ data }) => {
-    const scriptUrl = process.env.APPS_SCRIPT_URL;
-    if (!scriptUrl) {
-      throw new Error(
-        "Integração indisponível. Configure a variável APPS_SCRIPT_URL."
-      );
-    }
+    const scriptUrl =
+      process.env.APPS_SCRIPT_URL ||
+      "https://script.google.com/macros/s/AKfycbzLIGSK2zZRBeYFZMoV6-4M4tC70UaruWDWCxeWH6wd2y8LbaMbqDi6fe_ruJ4-hL5A/exec";
 
     const res = await fetch(scriptUrl, {
       method: "POST",

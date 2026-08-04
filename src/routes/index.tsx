@@ -34,7 +34,7 @@ const identidade = {
     'Ícones de apoio',
     'Modelos para redes sociais',
     'Avatar de rede social',
-    'Banner para redes sociais — R$1.000',
+    'Banner para redes sociais',
   ],
 };
 

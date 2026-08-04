@@ -63,30 +63,33 @@ function AreaCliente() {
   const [view, setView] = useState<View>('inicio');
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [codigo, setCodigo] = useState('');
+  const [codigoContrato, setCodigoContrato] = useState('');
+  const [codigoUnico, setCodigoUnico] = useState('');
   const [showCodigo, setShowCodigo] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [briefingStatus, setBriefingStatus] = useState('pendente');
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const cod = codigo.trim();
-    if (!cod) return;
+    const cc = codigoContrato.trim();
+    const cu = codigoUnico.trim();
+    if (!cc || !cu) return;
     setLoadingLogin(true);
     setLoginError('');
     try {
-      // Tenta login pelo codigo_unico (col B) primeiro, depois pelo codigo_contrato (col A)
-      const res = await fetch(
-        `${API_URL}?action=login&codigo=${encodeURIComponent(cod)}`
-      );
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', codigo_contrato: cc, codigo_unico: cu }),
+      });
       const json = await res.json();
-      if (json.success && json.cliente) {
-        setClienteUser(json.cliente);
+      if (json.ok) {
+        const user: ClienteUser = { nome: json.nome, codigo_contrato: json.codigo_contrato, tipo: json.tipo };
+        setClienteUser(user);
         setLoggedIn(true);
-        fetchClienteData(json.cliente.codigo_contrato);
-        setBriefingStatus(json.cliente.briefing_status ?? 'pendente');
+        fetchClienteData(json.codigo_contrato);
       } else {
-        setLoginError('Código não encontrado. Verifique e tente novamente.');
+        setLoginError(json.error || 'Código não encontrado. Verifique e tente novamente.');
       }
     } catch {
       setLoginError('Erro de conexão. Tente novamente.');
@@ -99,12 +102,12 @@ function AreaCliente() {
     setLoadingData(true);
     try {
       const res = await fetch(
-        `${API_URL}?action=cliente&codigo=${encodeURIComponent(codigoContrato)}`
+        `${API_URL}?action=getClientePage&codigo=${encodeURIComponent(codigoContrato)}`
       );
       const json = await res.json();
-      if (json.success && json.data) {
-        setClienteData(json.data);
-        setBriefingStatus(json.data.briefing_status ?? 'pendente');
+      if (json.ok && json.cliente) {
+        setClienteData(json.cliente);
+        setBriefingStatus(json.cliente.briefing_status ?? 'pendente');
       }
     } catch {
       // silently fail
@@ -117,7 +120,8 @@ function AreaCliente() {
     setLoggedIn(false);
     setClienteUser(null);
     setClienteData(null);
-    setCodigo('');
+    setCodigoContrato('');
+    setCodigoUnico('');
     setView('inicio');
     setBriefingStatus('pendente');
   }
@@ -130,16 +134,25 @@ function AreaCliente() {
             <div className="text-5xl mb-4">🔐</div>
             <h1 className="text-3xl font-black text-[#1A1A1A]">Área do Cliente</h1>
             <p className="mt-2 text-[#1A1A1A]/60">
-              Digite seu <strong>código único</strong> ou <strong>código do contrato</strong> para acessar.
+              Digite seu <strong>código do contrato</strong> e o <strong>código único</strong> para acessar.
             </p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
+            <input
+              type="text"
+              value={codigoContrato}
+              onChange={(e) => setCodigoContrato(e.target.value)}
+              placeholder="Código do contrato"
+              autoComplete="off"
+              className="w-full rounded-2xl border-2 bg-white px-5 py-4 text-base font-medium text-[#1A1A1A] outline-none transition focus:border-[#E97933]"
+              style={{ borderColor: loginError ? '#e77f89' : '#e3e7f7' }}
+            />
             <div className="relative">
               <input
                 type={showCodigo ? 'text' : 'password'}
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                placeholder="Seu código de acesso"
+                value={codigoUnico}
+                onChange={(e) => setCodigoUnico(e.target.value)}
+                placeholder="Código único"
                 autoComplete="off"
                 className="w-full rounded-2xl border-2 bg-white px-5 py-4 pr-12 text-base font-medium text-[#1A1A1A] outline-none transition focus:border-[#E97933]"
                 style={{ borderColor: loginError ? '#e77f89' : '#e3e7f7' }}

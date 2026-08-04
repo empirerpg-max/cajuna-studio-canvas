@@ -3,147 +3,88 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { SiteShell } from '@/components/SiteShell';
 import { WaveDivider } from '@/components/WaveDivider';
-import { X, ImageOff } from 'lucide-react';
+import { X, ImageOff, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const Route = createFileRoute('/portfolio')({
   head: () => ({
     meta: [
       { title: 'Portfólio — Cajuna Studio' },
-      { name: 'description', content: 'Projetos de identidade visual, packaging, social media e impressos criados pela Cajuna Studio.' },
+      { name: 'description', content: 'Projetos de identidade visual criados pela Cajuna Studio.' },
       { property: 'og:title', content: 'Portfólio — Cajuna Studio' },
-      { property: 'og:description', content: 'Projetos de identidade visual e social media.' },
+      { property: 'og:description', content: 'Projetos de identidade visual.' },
     ],
   }),
   component: Portfolio,
 });
 
 /**
- * Unsplash Source retorna uma imagem aleatória por query.
- * Seed estabiliza a imagem entre renders (mesmo seed = mesma foto).
+ * Converte o ID de um arquivo do Google Drive (compartilhado como "qualquer
+ * pessoa com o link pode ver") em uma URL de imagem embutível, sem precisar
+ * baixar o arquivo — igual a um embed do Behance.
  */
-function unsplash(query: string, seed: number, w = 800, h = 600) {
-  return `https://source.unsplash.com/${w}x${h}/?${encodeURIComponent(query)}&sig=${seed}`;
+function driveImage(fileId: string, width = 1600) {
+  return `https://lh3.googleusercontent.com/d/${fileId}=w${width}`;
 }
 
 type Project = {
-  img: string;
-  imgQuery: string;
-  seed: number;
   title: string;
   category: string;
   client: string;
   desc: string;
   accent: string;
+  images: string[];
 };
 
 const projects: Project[] = [
   {
-    img: unsplash('branding identity logo design', 1, 800, 600),
-    imgQuery: 'branding identity logo design',
-    seed: 1,
-    title: 'Kibring',
+    title: 'Águia Cursinho',
     category: 'Identidade Visual',
-    client: 'Estúdio gastronômico',
-    desc: 'Sistema de papelaria com paleta laranja e navy em alto contraste. Do símbolo ao manual, passando por cartão, folder e mockups de aplicação.',
+    client: 'Cursinho pré-vestibular',
+    desc: 'Identidade visual completa desenvolvida para a Águia Cursinho.',
     accent: '#E97933',
+    images: [
+      driveImage('1fVvV4gqkS9awek9Yp0kdhJ8rqqDnW7bY'),
+      driveImage('1JPCPJ14D0_elZMMW7nkHyH3PEqtcWKHG'),
+      driveImage('1XXEL-nEX5kYAf2ZabWf0uvo3NoIjuMFZ'),
+      driveImage('1I1w1vBGLsuGLwTmMyz154EUJs9UK5-9P'),
+      driveImage('14I3gg7sgn9V1kLJXjcQhEwfCPXBCzX2K'),
+    ],
   },
   {
-    img: unsplash('tech startup brand geometric', 2, 800, 600),
-    imgQuery: 'tech startup brand geometric',
-    seed: 2,
-    title: 'Hexa Lab',
-    category: 'Brand Mark',
-    client: 'Tech startup',
-    desc: 'Marca geométrica com símbolo modular pensado pra múltiplas aplicações — de favicon a outdoor.',
+    title: 'Ana Amaral Confeitaria',
+    category: 'Identidade Visual',
+    client: 'Confeitaria artesanal',
+    desc: 'Identidade visual desenvolvida para a Ana Amaral Confeitaria.',
     accent: '#2D5F8A',
-  },
-  {
-    img: unsplash('fashion social media instagram feed', 3, 800, 600),
-    imgQuery: 'fashion social media instagram feed',
-    seed: 3,
-    title: 'Mosaico Social',
-    category: 'Social Media',
-    client: 'Marca de moda',
-    desc: 'Grid de posts e stories estruturado em sistema visual. Frequência semanal, identidade impecável.',
-    accent: '#E97933',
-  },
-  {
-    img: unsplash('natural cosmetic packaging product', 4, 800, 600),
-    imgQuery: 'natural cosmetic packaging product',
-    seed: 4,
-    title: 'Vivo Care',
-    category: 'Packaging',
-    client: 'Cosmético natural',
-    desc: 'Embalagem minimalista, blocos de cor e tipografia limpa. Projeto pensado pra prateleira e pra foto.',
-    accent: '#2D5F8A',
-  },
-  {
-    img: unsplash('cafe coffee shop menu branding', 5, 800, 600),
-    imgQuery: 'cafe coffee shop menu branding',
-    seed: 5,
-    title: 'Mina Caffè',
-    category: 'Impressos',
-    client: 'Cafeteria de bairro',
-    desc: 'Cardápios, cartões e materiais de mesa em paleta quente. Cada detalhe reforça o clima aconchegante do espaço.',
-    accent: '#E97933',
-  },
-  {
-    img: unsplash('brand book design manual typography', 6, 800, 600),
-    imgQuery: 'brand book design manual typography',
-    seed: 6,
-    title: 'Brand Book Atlas',
-    category: 'Manual de Marca',
-    client: 'Consultoria',
-    desc: 'Guia completo de uso de marca: cores, tipografias, tom de voz e aplicações em todos os canais.',
-    accent: '#2D5F8A',
-  },
-  {
-    img: unsplash('food packaging label design', 7, 800, 600),
-    imgQuery: 'food packaging label design',
-    seed: 7,
-    title: 'Semeio',
-    category: 'Embalagem & Rótulo',
-    client: 'Alimentos artesanais',
-    desc: 'Rótulo com identidade orgânica e elementos de ilustração. Projeto pensado pra se destacar nas gôndolas.',
-    accent: '#E97933',
-  },
-  {
-    img: unsplash('event poster retro design print', 8, 800, 600),
-    imgQuery: 'event poster retro design print',
-    seed: 8,
-    title: 'Festa Raiz',
-    category: 'Estampa & Evento',
-    client: 'Produtora cultural',
-    desc: 'Arte para banner, camiseta e materiais de divulgação de evento regional com estética popular.',
-    accent: '#2D5F8A',
-  },
-  {
-    img: unsplash('digital ads social media creative', 9, 800, 600),
-    imgQuery: 'digital ads social media creative',
-    seed: 9,
-    title: 'Campanha Verão',
-    category: 'Criativos para Anúncios',
-    client: 'E-commerce de moda',
-    desc: 'Série de criativos para Facebook e Instagram Ads com CRO visual: hierarquia clara e CTA forte.',
-    accent: '#E97933',
+    images: [
+      driveImage('19DFnku7VG425sQz60MI2vXFW6G21yYtV'),
+      driveImage('1161h-kbyI6cLtbCPRV8l_n7bj4IjfCI_'),
+      driveImage('1Gv9ghPqp45nzOXmujTUuKTwG7YE3hw5l'),
+      driveImage('1XslYgNSEZ6VlmCQC4RIw5lp1OXfuc7De'),
+      driveImage('1wQTCJjxElOwzZ_jyyQG93hbqhfqe1l0E'),
+      driveImage('1asI8HFvr-ZqfGVfwhVUmC4Ec-FUAGwUs'),
+      driveImage('1rcRjQVOGB8j05WTPQt7C-VzLMH6YqGy9'),
+      driveImage('1mZgygt4N32tSkxIKC19N7ZuVoNCwU3Wr'),
+      driveImage('19ugWDoaCXIglVNNhY9TB04QxrRQx6HLv'),
+    ],
   },
 ];
 
-/** Imagem com fallback colorido caso Unsplash falhe */
+/** Imagem com fallback colorido caso o arquivo do Drive não carregue */
 function PortfolioImage({
   src,
   alt,
   accent,
   className = '',
 }: {
-  src: string;
+  src?: string;
   alt: string;
   accent: string;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
 
-  if (failed) {
+  if (!src || failed) {
     return (
       <div
         className={`w-full h-full flex items-center justify-center ${className}`}
@@ -159,8 +100,6 @@ function PortfolioImage({
       src={src}
       alt={alt}
       loading="lazy"
-      width={800}
-      height={600}
       onError={() => setFailed(true)}
       className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${className}`}
     />
@@ -172,13 +111,19 @@ const fadeUp = {
   visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.06 } }),
 };
 
-const CATS = ['Todos', ...Array.from(new Set(projects.map((p) => p.category)))];
-
 function Portfolio() {
   const [open, setOpen] = useState<Project | null>(null);
-  const [cat, setCat] = useState('Todos');
+  const [imgIndex, setImgIndex] = useState(0);
 
-  const filtered = cat === 'Todos' ? projects : projects.filter((p) => p.category === cat);
+  function openProject(p: Project) {
+    setOpen(p);
+    setImgIndex(0);
+  }
+
+  function closeModal() {
+    setOpen(null);
+    setImgIndex(0);
+  }
 
   return (
     <SiteShell>
@@ -190,41 +135,21 @@ function Portfolio() {
             Marcas que <span style={{ color: '#E97933' }}>amamos</span> ter feito.
           </h1>
           <p className="mt-4 text-lg text-white/70 max-w-2xl">
-            Uma seleção de projetos recentes — identidade visual, social media, packaging e impressos.
+            Projetos de identidade visual desenvolvidos pela Cajuna Studio.
           </p>
         </div>
         <WaveDivider fill="#FFF8F2" />
       </section>
 
-      {/* FILTROS */}
-      <section className="mx-auto max-w-6xl px-5 pt-10">
-        <div className="flex flex-wrap gap-2">
-          {CATS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCat(c)}
-              className={`px-4 py-2 rounded-full border-2 border-[#1A1A1A] text-sm font-bold transition-colors ${
-                cat === c
-                  ? 'bg-[#E97933] text-[#1A1A1A]'
-                  : 'bg-white text-[#1A1A1A] hover:bg-[#FFF8F2]'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* GRID */}
-      <section className="mx-auto max-w-6xl px-5 py-8 pb-20">
-        <motion.div layout className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((p, i) => (
+      <section className="mx-auto max-w-6xl px-5 py-10 pb-20">
+        <motion.div layout className="grid sm:grid-cols-2 gap-5">
+          {projects.map((p, i) => (
             <motion.button
               layout
               key={p.title}
               type="button"
-              onClick={() => setOpen(p)}
+              onClick={() => openProject(p)}
               custom={i}
               initial="hidden"
               whileInView="visible"
@@ -234,7 +159,7 @@ function Portfolio() {
               className="group text-left rounded-3xl overflow-hidden border-2 border-[#1A1A1A] bg-white hover:border-[#E97933] transition-colors"
             >
               <div className="aspect-[4/3] overflow-hidden bg-[#F0EAE3]">
-                <PortfolioImage src={p.img} alt={p.title} accent={p.accent} />
+                <PortfolioImage src={p.images[0]} alt={p.title} accent={p.accent} />
               </div>
               <div className="p-5">
                 <div className="text-xs font-black uppercase tracking-widest text-[#E97933]">{p.category}</div>
@@ -254,7 +179,7 @@ function Portfolio() {
       {open && (
         <div
           className="fixed inset-0 z-50 bg-[#1A1A1A]/80 backdrop-blur-sm p-4 md:p-10 overflow-y-auto flex items-start justify-center"
-          onClick={() => setOpen(null)}
+          onClick={closeModal}
         >
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.97 }}
@@ -263,20 +188,56 @@ function Portfolio() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setOpen(null)}
+              onClick={closeModal}
               className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white border-2 border-[#1A1A1A] hover:bg-[#FFF8F2]"
               aria-label="Fechar"
             >
               <X size={18} />
             </button>
-            <div className="w-full aspect-video bg-[#F0EAE3] overflow-hidden">
+
+            <div className="w-full aspect-video bg-[#F0EAE3] overflow-hidden relative">
               <PortfolioImage
-                src={unsplash(open.imgQuery, open.seed, 1200, 675)}
+                src={open.images[imgIndex]}
                 alt={open.title}
                 accent={open.accent}
                 className="w-full h-full"
               />
+              {open.images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setImgIndex((i) => (i - 1 + open.images.length) % open.images.length)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 border-2 border-[#1A1A1A] hover:bg-white"
+                    aria-label="Imagem anterior"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={() => setImgIndex((i) => (i + 1) % open.images.length)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 border-2 border-[#1A1A1A] hover:bg-white"
+                    aria-label="Próxima imagem"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </>
+              )}
             </div>
+
+            {open.images.length > 1 && (
+              <div className="flex gap-2 px-8 pt-4 overflow-x-auto">
+                {open.images.map((src, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setImgIndex(i)}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 ${
+                      i === imgIndex ? 'border-[#E97933]' : 'border-[#1A1A1A]/20'
+                    }`}
+                  >
+                    <PortfolioImage src={src} alt={`${open.title} ${i + 1}`} accent={open.accent} />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="p-8">
               <div className="flex items-center gap-3 flex-wrap">
                 <span

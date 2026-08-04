@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useServerFn } from '@tanstack/react-start';
 import { cn } from '@/lib/utils';
+import { submitForm } from '@/lib/forms.functions';
 import {
   ArrowRight,
   ArrowLeft,
@@ -12,7 +14,10 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-const API_URL =
+// Apps Script da Área do Cliente (login, dados do painel, status do briefing).
+// As respostas do briefing em si vão para o Apps Script de formulários (submitForm),
+// que salva na planilha/aba "Briefing".
+const CLIENT_API_URL =
   'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
 
 type QuestionType = 'text' | 'email' | 'textarea' | 'multicheck' | 'upload';
@@ -146,6 +151,7 @@ export function BriefingWizard({
   clienteUser: ClienteUser;
   onStatusChange: (status: string) => void;
 }) {
+  const submit = useServerFn(submitForm);
   const printRef = useRef<HTMLDivElement>(null);
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
@@ -242,21 +248,30 @@ export function BriefingWizard({
     setLoading(true);
     try {
       const filesPayload = await prepareFilesPayload();
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'briefing', data: payload, files: filesPayload }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setFinalPayload(payload);
-        setDone(true);
-        onStatusChange('enviado');
-      } else {
-        showToast('Erro ao enviar. Tente novamente.');
+
+      // Envia as respostas para o Apps Script de formulários → aba "Briefing"
+      await submit({ data: { kind: 'briefing', fields: payload, files: filesPayload } });
+
+      // Atualiza o status do briefing no painel do cliente
+      try {
+        await fetch(CLIENT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'saveClientePage',
+            codigo_contrato: clienteUser.codigo_contrato,
+            data: { briefing_status: 'enviado' },
+          }),
+        });
+      } catch {
+        // não bloqueia o sucesso do envio do briefing se o status não atualizar
       }
-    } catch {
-      showToast('Erro de conexão. Tente novamente.');
+
+      setFinalPayload(payload);
+      setDone(true);
+      onStatusChange('enviado');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Erro ao enviar. Tente novamente.');
     } finally {
       setLoading(false);
     }
