@@ -56,7 +56,17 @@ const projects: Project[] = [
     client: 'Confeitaria artesanal',
     desc: 'Identidade visual desenvolvida para a Ana Amaral Confeitaria.',
     accent: '#2D5F8A',
-    images: [],
+    images: [
+      driveImage('19DFnku7VG425sQz60MI2vXFW6G21yYtV'),
+      driveImage('1161h-kbyI6cLtbCPRV8l_n7bj4IjfCI_'),
+      driveImage('1Gv9ghPqp45nzOXmujTUuKTwG7YE3hw5l'),
+      driveImage('1XslYgNSEZ6VlmCQC4RIw5lp1OXfuc7De'),
+      driveImage('1wQTCJjxElOwzZ_jyyQG93hbqhfqe1l0E'),
+      driveImage('1asI8HFvr-ZqfGVfwhVUmC4Ec-FUAGwUs'),
+      driveImage('1rcRjQVOGB8j05WTPQt7C-VzLMH6YqGy9'),
+      driveImage('1mZgygt4N32tSkxIKC19N7ZuVoNCwU3Wr'),
+      driveImage('19ugWDoaCXIglVNNhY9TB04QxrRQx6HLv'),
+    ],
   },
 ];
 
