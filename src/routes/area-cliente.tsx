@@ -79,7 +79,8 @@ function AreaCliente() {
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // text/plain evita o preflight CORS (Apps Script não responde OPTIONS)
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'login', codigo_contrato: cc, codigo_unico: cu }),
       });
       const json = await res.json();

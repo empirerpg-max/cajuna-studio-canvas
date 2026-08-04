@@ -256,7 +256,8 @@ export function BriefingWizard({
       try {
         await fetch(CLIENT_API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // text/plain evita o preflight CORS (Apps Script não responde OPTIONS)
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'saveClientePage',
             codigo_contrato: clienteUser.codigo_contrato,
