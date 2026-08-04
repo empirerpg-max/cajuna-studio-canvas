@@ -47,11 +47,13 @@ function Orcamento() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const lgpdAceito = fd.get('lgpd') === 'on';
     const fields = {
       nome: String(fd.get('nome') || ''),
       email: String(fd.get('email') || ''),
       whatsapp: String(fd.get('whatsapp') || ''),
       servico: String(fd.get('servico') || ''),
+      lgpd: lgpdAceito ? 'Sim' : 'Não',
       mensagem: String(fd.get('mensagem') || ''),
     };
     if (!fields.nome || !fields.email || !fields.servico) {
@@ -60,6 +62,10 @@ function Orcamento() {
     }
     if (!/^\S+@\S+\.\S+$/.test(fields.email)) {
       toast.error('E-mail inválido.');
+      return;
+    }
+    if (!lgpdAceito) {
+      toast.error('Você precisa aceitar o tratamento dos seus dados para continuar.');
       return;
     }
     const kind = fields.servico === 'Conversar com uma pessoa' ? 'contratacao' : 'orcamento';
@@ -129,6 +135,20 @@ function Orcamento() {
               placeholder="Conta um pouquinho sobre o seu projeto..."
               cls={fieldCls}
             />
+            <label className="flex items-start gap-3 text-xs font-medium text-[#1A1A1A]/70">
+              <input
+                type="checkbox"
+                name="lgpd"
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#E97933]"
+              />
+              <span>
+                Autorizo a Cajuna Studio a coletar e tratar meus dados pessoais informados
+                neste formulário, exclusivamente para fins de contato e elaboração de
+                orçamento, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei
+                nº 13.709/2018).
+              </span>
+            </label>
             <button
               type="submit"
               disabled={loading || done}
@@ -138,7 +158,7 @@ function Orcamento() {
               {done ? 'Enviado ✓' : loading ? 'Enviando...' : 'Enviar pedido'}
             </button>
             <p className="text-xs text-[#1A1A1A]/50 text-center font-medium">
-              Os dados são enviados direto pra nossa planilha — sem spam, prometido.
+              Entraremos em contato o quanto antes 🙂
             </p>
           </form>
         </RetroCard>
