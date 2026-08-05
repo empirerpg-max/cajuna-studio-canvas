@@ -55,6 +55,50 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const MAX_IMAGE_DIMENSION = 1920;
+const IMAGE_QUALITY = 0.82;
+const SKIP_COMPRESS_UNDER_BYTES = 1_500_000; // ~1.5MB já é leve o suficiente
+
+// Fotos de celular podem chegar a dezenas de MB; sem compressão, o payload
+// (em base64) facilmente passa de 30-40MB e falha silenciosamente no envio
+// (limite de tamanho/tempo do Apps Script). Reduz pra um tamanho razoável
+// antes de converter para base64.
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+    return file;
+  }
+  if (file.size < SKIP_COMPRESS_UNDER_BYTES) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Falha ao carregar imagem'));
+      el.src = objectUrl;
+    });
+
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', IMAGE_QUALITY)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 const QUESTIONS: Question[] = [
   { id: 'nome', section: 'Vamos nos conhecer', emoji: '👋', title: 'Qual é o seu nome?', type: 'text', placeholder: 'Digite seu nome...', required: true },
   { id: 'email', section: 'Vamos nos conhecer', emoji: '👋', title: 'Qual é o seu e-mail?', type: 'email', placeholder: 'seuemail@exemplo.com', required: true },
@@ -337,14 +381,26 @@ export function BriefingWizard({
     for (const [key, fileList] of Object.entries(files)) {
       if (!fileList.length) continue;
       result[key] = await Promise.all(
-        fileList.map(async (file) => ({
-          name: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          base64: await fileToBase64(file),
-        }))
+        fileList.map(async (file) => {
+          const compressed = await compressImage(file);
+          return {
+            name: compressed.name,
+            mimeType: compressed.type || 'application/octet-stream',
+            base64: await fileToBase64(compressed),
+          };
+        })
       );
     }
     return result;
+  }
+
+  const MAX_UPLOAD_TOTAL_BYTES = 18_000_000; // ~18MB de arquivos (após compressão)
+
+  function totalFilesSize(): number {
+    return Object.values(files).reduce(
+      (sum, list) => sum + list.reduce((s, f) => s + f.size, 0),
+      0
+    );
   }
 
   async function handleSubmit() {
@@ -352,6 +408,12 @@ export function BriefingWizard({
     if (q && (q.type === 'text' || q.type === 'email' || q.type === 'textarea')) payload[q.id] = value.trim();
     Object.entries(checks).forEach(([key, vals]) => { payload[key] = vals.map(stripEmoji).join(', '); });
     payload['codigo_contrato'] = clienteUser.codigo_contrato;
+
+    if (totalFilesSize() > MAX_UPLOAD_TOTAL_BYTES * 3) {
+      showToast('Os arquivos anexados são muito grandes. Remova alguns ou envie fotos menores.');
+      return;
+    }
+
     setLoading(true);
     try {
       const filesPayload = await prepareFilesPayload();
