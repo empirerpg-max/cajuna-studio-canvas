@@ -20,7 +20,7 @@ import {
 const CLIENT_API_URL =
   'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
 
-type QuestionType = 'text' | 'email' | 'textarea' | 'multicheck' | 'upload';
+type QuestionType = 'text' | 'email' | 'textarea' | 'multicheck' | 'upload' | 'colorpalette' | 'tags3';
 
 export interface ClienteUser {
   nome: string;
@@ -76,10 +76,10 @@ const QUESTIONS: Question[] = [
     options: ['✨ Moderna','💎 Elegante','🎉 Extrovertida','🤫 Discreta','🏛️ Tradicional','🧭 Aventureira','🦉 Madura','🌸 Sensível','🪷 Delicada','🤓 Nerd','📐 Conservadora','😄 Brincalhona','☀️ Alegre','😌 Calma','👑 Líder','⚡ Energética','📚 Sábia','🤝 Acessível','💠 Exclusiva','🎨 Criativa','🔬 Científica','🌹 Romântica','🔥 Ousada','🥃 Sóbria','🪵 Rústica','👔 Formal','🚀 Futurista','🏺 Antiga','🧠 Racional','💪 Determinada','🌐 Mente Aberta','🏖️ Relaxada','🎈 Divertida','🍃 Tranquila','🔮 Intuitiva','🛡️ Confiável','🦋 Diferente','🎯 Persistente','⏱️ Disciplinada','💼 Profissional','💡 Esperta','🌟 Deslumbrante','📡 Atual','✅ Padronizada','🌼 Inocente','🕊️ Livre','🎓 Acadêmica','⚖️ Estável','🌫️ Sutil','☕ Básica','👟 Casual','💭 Sonhadora','🗂️ Convencional','💥 Radical','🌱 Simples','😈 Atrevida','📅 Cotidiana','🎭 Multifacetada','🪞 Refinada','⚙️ Industrial','🌤️ Leve','🏙️ Contemporânea'],
     required: true,
   },
-  { id: 'tres_palavras', section: 'Sua empresa', emoji: '🏢', title: 'Das palavras que você escolheu, quais são as 3 mais importantes?', hint: 'Essas 3 palavras serão o norte criativo. Tudo que criarmos vai passar pelo filtro delas.', type: 'text', placeholder: 'Palavra 1, Palavra 2, Palavra 3', required: true },
+  { id: 'tres_palavras', section: 'Sua empresa', emoji: '🏢', title: 'Das palavras que você escolheu, quais são as 3 mais importantes?', hint: 'Escolha até 3 entre as palavras que você marcou na pergunta anterior. Essas 3 palavras serão o norte criativo — tudo que criarmos vai passar pelo filtro delas.', type: 'tags3', required: true },
   { id: 'redes', section: 'Sua empresa', emoji: '🏢', title: 'Sua marca possui site ou redes sociais?', type: 'text', placeholder: '@suamarca · www.suamarca.com.br', skippable: true, transitionMessage: 'Perfeito. Agora vamos falar das referências visuais. 🎨' },
   { id: 'simbolo', section: 'Referências visuais', emoji: '🎨', title: 'Sua marca precisa de algum símbolo junto ao logotipo?', hint: 'Símbolo é o elemento visual que acompanha o nome.\n• Nike → o swoosh  • Apple → a maçã  • Starbucks → a sereia\n\nTem alguma ideia? Iniciais? Um animal? Um ícone específico?', type: 'textarea', placeholder: 'Descreva o que imagina (ou deixe em branco)...', skippable: true },
-  { id: 'cores', section: 'Referências visuais', emoji: '🎨', title: 'Há alguma paleta de cores com a qual você se identifica?', hint: '🔴 Vermelho → energia  •  🔵 Azul → confiança  •  🟢 Verde → natureza  •  🟡 Dourado → sofisticação\n\nPesquise em: coolors.co · colorhunt.co · pinterest.com\nCole links ou descreva as cores.', type: 'textarea', placeholder: 'Cole links de paletas ou descreva as cores...', required: true },
+  { id: 'cores', section: 'Referências visuais', emoji: '🎨', title: 'Há alguma paleta de cores com a qual você se identifica?', hint: '🔴 Vermelho → energia  •  🔵 Azul → confiança  •  🟢 Verde → natureza  •  🟡 Dourado → sofisticação\n\nSelecione quantos tons quiser no painel abaixo. Ao marcar uma cor, o código CMYK dela aparece — é o que a gráfica/impressão vai usar.', type: 'colorpalette', required: true },
   { id: 'cores_nao', section: 'Referências visuais', emoji: '🎨', title: 'Tem alguma cor que você NÃO quer de jeito algum?', hint: 'Tão importante quanto o que você gosta. Se remete a concorrente ou você simplesmente não suporta — fala sem medo.', type: 'textarea', placeholder: 'Ex: Verde — remete a um concorrente direto...', skippable: true },
   { id: 'logo_antigo', section: 'Referências visuais', emoji: '🎨', title: 'Você já tem algum logotipo?', hint: 'Se sim: por que quer mudar? Manteria algum elemento?\nÀs vezes o cliente quer uma evolução, não uma ruptura total.', type: 'textarea', placeholder: 'Me conta sobre o logo atual (ou "Não tenho")...', skippable: true },
   { id: 'logos_ref', section: 'Referências visuais', emoji: '🎨', title: 'Cite pelo menos 3 logos que você aprecia — de qualquer segmento.', hint: 'O objetivo é entender seu gosto visual. Para cada um, diga o que te agradou: a fonte? o símbolo? a simplicidade?\n\nBusque em: behance.net · dribbble.com · pinterest.com', type: 'textarea', placeholder: '1. Nike — adoro a simplicidade do swoosh\n2. ...\n3. ...', required: true },
@@ -95,6 +95,106 @@ const QUESTIONS: Question[] = [
 ];
 
 const SECTIONS = Array.from(new Set(QUESTIONS.map((q) => q.section)));
+
+// ─── Paleta de cores (painel interativo com CMYK) ────────────────────────────
+
+function hexToCmyk(hex: string) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const k = 1 - Math.max(r, g, b);
+  if (k >= 1) return { c: 0, m: 0, y: 0, k: 100 };
+  const c = (1 - r - k) / (1 - k);
+  const m = (1 - g - k) / (1 - k);
+  const y = (1 - b - k) / (1 - k);
+  return { c: Math.round(c * 100), m: Math.round(m * 100), y: Math.round(y * 100), k: Math.round(k * 100) };
+}
+
+const COLOR_PALETTE: { name: string; hex: string }[] = [
+  { name: 'Vermelho', hex: '#E63946' },
+  { name: 'Vermelho escuro', hex: '#9D2235' },
+  { name: 'Coral', hex: '#FF6B6B' },
+  { name: 'Terracota', hex: '#C46B4E' },
+  { name: 'Laranja', hex: '#E97933' },
+  { name: 'Laranja claro', hex: '#F4A261' },
+  { name: 'Pêssego', hex: '#FFD8B8' },
+  { name: 'Amarelo', hex: '#F4C542' },
+  { name: 'Dourado', hex: '#C9A227' },
+  { name: 'Mostarda', hex: '#D4A017' },
+  { name: 'Verde limão', hex: '#B5D33D' },
+  { name: 'Verde', hex: '#4C9A2A' },
+  { name: 'Verde escuro', hex: '#1E5631' },
+  { name: 'Verde menta', hex: '#7FD8BE' },
+  { name: 'Verde água', hex: '#2A9D8F' },
+  { name: 'Ciano', hex: '#3AB0C3' },
+  { name: 'Azul claro', hex: '#8ECAE6' },
+  { name: 'Azul', hex: '#2D5F8A' },
+  { name: 'Azul marinho', hex: '#14213D' },
+  { name: 'Azul royal', hex: '#3A56E8' },
+  { name: 'Lilás', hex: '#B39DDB' },
+  { name: 'Roxo', hex: '#6A4C93' },
+  { name: 'Roxo escuro', hex: '#3D1E6D' },
+  { name: 'Rosa', hex: '#F28FB1' },
+  { name: 'Rosa pink', hex: '#E4457A' },
+  { name: 'Vinho', hex: '#6E1423' },
+  { name: 'Marrom', hex: '#6B4226' },
+  { name: 'Areia', hex: '#E4D6B8' },
+  { name: 'Bege', hex: '#D8C3A5' },
+  { name: 'Cinza claro', hex: '#C9CCD1' },
+  { name: 'Cinza', hex: '#6E7076' },
+  { name: 'Grafite', hex: '#2B2D30' },
+  { name: 'Preto', hex: '#1A1A1A' },
+  { name: 'Branco', hex: '#FFFFFF' },
+];
+
+function ColorPaletteField({
+  selectedHex,
+  onToggle,
+}: {
+  selectedHex: string[];
+  onToggle: (label: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+      {COLOR_PALETTE.map(({ name, hex }) => {
+        const { c, m, y, k } = hexToCmyk(hex);
+        const label = `${name} (${hex}) — CMYK ${c}/${m}/${y}/${k}`;
+        const selected = selectedHex.includes(label);
+        return (
+          <button
+            key={hex}
+            type="button"
+            onClick={() => onToggle(label)}
+            className={cn(
+              'group relative flex flex-col items-center gap-1.5 rounded-2xl border-2 p-2 transition',
+              selected ? 'border-[#E97933] bg-[#FFF3EB]' : 'border-transparent hover:border-[#e3e7f7]'
+            )}
+            title={label}
+          >
+            <span
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border shadow-sm"
+              style={{ backgroundColor: hex, borderColor: hex === '#FFFFFF' ? '#e3e7f7' : hex }}
+            >
+              {selected && (
+                <CheckCircle2
+                  size={18}
+                  className="drop-shadow"
+                  style={{ color: ['#FFFFFF', '#E4D6B8', '#D8C3A5', '#C9CCD1', '#FFD8B8'].includes(hex) ? '#1A1A1A' : '#fff' }}
+                />
+              )}
+            </span>
+            <span className="text-[10px] font-bold text-[#1A1A1A]/60 leading-tight text-center">{name}</span>
+            {selected && (
+              <span className="text-[9px] font-mono font-bold text-[#E97933] leading-tight">
+                C{c} M{m} Y{y} K{k}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function UploadField({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
   return (
@@ -181,7 +281,7 @@ export function BriefingWizard({
 
   const currentValue = useMemo(() => {
     if (!q) return '';
-    if (q.type === 'multicheck') return (checks[q.id] ?? []).join(', ');
+    if (q.type === 'multicheck' || q.type === 'colorpalette' || q.type === 'tags3') return (checks[q.id] ?? []).join(', ');
     if (q.type === 'upload') return (files[q.id] ?? []).map((f) => f.name).join(', ');
     return value.trim();
   }, [q, value, checks, files]);
@@ -221,7 +321,14 @@ export function BriefingWizard({
     if (!q) return;
     setChecks((prev) => {
       const cur = prev[q.id] ?? [];
-      return { ...prev, [q.id]: cur.includes(option) ? cur.filter((x) => x !== option) : [...cur, option] };
+      if (cur.includes(option)) {
+        return { ...prev, [q.id]: cur.filter((x) => x !== option) };
+      }
+      if (q.id === 'tres_palavras' && cur.length >= 3) {
+        showToast('Escolha no máximo 3 palavras.');
+        return prev;
+      }
+      return { ...prev, [q.id]: [...cur, option] };
     });
   }
 
@@ -453,6 +560,40 @@ export function BriefingWizard({
                   <UploadField
                     files={files[q.id] ?? []}
                     onChange={(newFiles) => setFiles((prev) => ({ ...prev, [q.id]: newFiles }))}
+                  />
+                )}
+                {q.type === 'tags3' && (
+                  personalidadeTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {personalidadeTags.map((tag) => {
+                        const selected = (checks[q.id] ?? []).includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleOption(tag)}
+                            className={cn(
+                              'rounded-full border-2 px-4 py-2 text-sm font-bold transition',
+                              selected
+                                ? 'border-[#E97933] bg-[#FFF3EB] text-[#E97933]'
+                                : 'border-[#e3e7f7] bg-white text-[#1A1A1A]/60 hover:border-[#E97933]/40'
+                            )}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#1A1A1A]/40">
+                      Volte na pergunta anterior e escolha algumas palavras primeiro.
+                    </p>
+                  )
+                )}
+                {q.type === 'colorpalette' && (
+                  <ColorPaletteField
+                    selectedHex={checks[q.id] ?? []}
+                    onToggle={(label) => toggleOption(label)}
                   />
                 )}
               </div>
