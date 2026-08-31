@@ -56,11 +56,24 @@ function AdminCajuna() {
       const res = await fetch(`${API_URL}?action=getDeals`);
       const json = await res.json();
       if (json.ok) {
+        // Campos de texto podem voltar como número/data se alguém editar a
+        // planilha na mão em vez de usar o formulário — normaliza pra string.
+        const asText = (v: unknown) => (v === null || v === undefined ? '' : String(v));
         setDeals(
           (json.deals ?? []).map((d: Deal) => ({
             ...d,
-            funil: d.funil || 'Leads',
-            tags: Array.isArray(d.tags) ? d.tags : [],
+            id: asText(d.id),
+            funil: asText(d.funil) || 'Leads',
+            cliente: asText(d.cliente),
+            servico: asText(d.servico),
+            valor: asText(d.valor),
+            responsavel: asText(d.responsavel),
+            prioridade: asText(d.prioridade),
+            coluna: asText(d.coluna),
+            ultimoContato: asText(d.ultimoContato),
+            contato: asText(d.contato),
+            obs: asText(d.obs),
+            tags: Array.isArray(d.tags) ? d.tags.map(asText) : [],
           }))
         );
       }
