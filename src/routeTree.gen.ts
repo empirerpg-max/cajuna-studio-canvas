@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminCajunaRouteImport } from './routes/admin-cajuna'
 import { Route as AreaClienteRouteImport } from './routes/area-cliente'
 import { Route as OrcamentoRouteImport } from './routes/orcamento'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
@@ -17,6 +18,11 @@ import { Route as PortfolioRouteImport } from './routes/portfolio'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCajunaRoute = AdminCajunaRouteImport.update({
+  id: '/admin-cajuna',
+  path: '/admin-cajuna',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AreaClienteRoute = AreaClienteRouteImport.update({
@@ -37,12 +43,14 @@ const PortfolioRoute = PortfolioRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
@@ -50,20 +58,29 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
   '/orcamento': typeof OrcamentoRoute
   '/portfolio': typeof PortfolioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/area-cliente' | '/orcamento' | '/portfolio'
+  fullPaths:
+    '/' | '/admin-cajuna' | '/area-cliente' | '/orcamento' | '/portfolio'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/area-cliente' | '/orcamento' | '/portfolio'
-  id: '__root__' | '/' | '/area-cliente' | '/orcamento' | '/portfolio'
+  to: '/' | '/admin-cajuna' | '/area-cliente' | '/orcamento' | '/portfolio'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin-cajuna'
+    | '/area-cliente'
+    | '/orcamento'
+    | '/portfolio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminCajunaRoute: typeof AdminCajunaRoute
   AreaClienteRoute: typeof AreaClienteRoute
   OrcamentoRoute: typeof OrcamentoRoute
   PortfolioRoute: typeof PortfolioRoute
@@ -76,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-cajuna': {
+      id: '/admin-cajuna'
+      path: '/admin-cajuna'
+      fullPath: '/admin-cajuna'
+      preLoaderRoute: typeof AdminCajunaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/area-cliente': {
@@ -104,6 +128,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminCajunaRoute: AdminCajunaRoute,
   AreaClienteRoute: AreaClienteRoute,
   OrcamentoRoute: OrcamentoRoute,
   PortfolioRoute: PortfolioRoute,
