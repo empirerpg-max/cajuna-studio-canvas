@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Eye, EyeOff, LogOut } from 'lucide-react';
+import { LeadsBoard } from '@/components/LeadsBoard';
 
 export const Route = createFileRoute('/admin-cajuna')({
   head: () => ({
@@ -147,10 +148,8 @@ function AdminCajuna() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 py-16 text-center">
-        <p className="text-[#1A1A1A]/50 font-medium">
-          Painel em construção — me diga o que você quer ver aqui dentro. 🙂
-        </p>
+      <main>
+        <LeadsBoard userName={adminUser?.nome ?? 'Admin'} />
       </main>
     </div>
   );
