@@ -1,18 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { formatCurrencyBRL, formatPhoneBR } from '@/lib/masks';
+import type { AdminOption, Deal } from '@/lib/crm-types';
 import { Plus, X, Trash2, Phone, Tag as TagIcon, Loader2 } from 'lucide-react';
-
-const API_URL =
-  'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
-
-const COLUNAS = [
-  'Novo Lead',
-  'Contato Feito',
-  'Proposta Enviada',
-  'Negociando',
-  'Fechado',
-  'Perdido',
-] as const;
 
 const PRIORIDADES = ['Baixa', 'Média', 'Alta'] as const;
 
@@ -22,93 +12,50 @@ const PRIORIDADE_STYLE: Record<string, { bg: string; color: string; border: stri
   Baixa: { bg: '#F1F1F1', color: '#5A5A5A', border: '#C9CCD1' },
 };
 
-interface Deal {
-  id: string;
-  cliente: string;
-  servico: string;
-  valor: string;
-  responsavel: string;
-  prioridade: string;
-  coluna: string;
-  ultimoContato: string;
-  contato: string;
-  tags: string[];
-  obs: string;
-  createdBy?: string;
-  createdAt?: string;
-  updatedBy?: string;
-  updatedAt?: string;
+function emptyForm(coluna: string, responsavel: string) {
+  return {
+    cliente: '',
+    servico: '',
+    valor: '',
+    responsavel,
+    prioridade: 'Média' as string,
+    coluna,
+    ultimoContato: '',
+    contato: '',
+    tags: '',
+    obs: '',
+  };
 }
 
-const emptyForm = {
-  cliente: '',
-  servico: '',
-  valor: '',
-  responsavel: '',
-  prioridade: 'Média' as string,
-  coluna: COLUNAS[0] as string,
-  ultimoContato: '',
-  contato: '',
-  tags: '',
-  obs: '',
-};
-
-export function LeadsBoard({ userName }: { userName: string }) {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+export function PipelineBoard({
+  funil,
+  columns,
+  deals,
+  admins,
+  userName,
+  loading,
+  saving,
+  onSave,
+  onDelete,
+}: {
+  funil: string;
+  columns: readonly string[];
+  deals: Deal[];
+  admins: AdminOption[];
+  userName: string;
+  loading: boolean;
+  saving: boolean;
+  onSave: (deal: Deal) => void;
+  onDelete: (id: string) => void;
+}) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    void loadDeals();
-  }, []);
-
-  async function loadDeals() {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}?action=getDeals`);
-      const json = await res.json();
-      if (json.ok) {
-        setDeals(
-          (json.deals ?? []).map((d: Deal) => ({
-            ...d,
-            tags: Array.isArray(d.tags) ? d.tags : [],
-          }))
-        );
-      } else {
-        setError(json.error || 'Não foi possível carregar os leads.');
-      }
-    } catch {
-      setError('Erro de conexão ao carregar os leads.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function persist(nextDeals: Deal[]) {
-    setDeals(nextDeals);
-    setSaving(true);
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        // text/plain evita o preflight CORS (Apps Script não responde OPTIONS)
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'saveDeals', deals: nextDeals, user: userName }),
-      });
-    } catch {
-      setError('Não foi possível salvar. Tente novamente.');
-    } finally {
-      setSaving(false);
-    }
-  }
+  const [form, setForm] = useState(emptyForm(columns[0], ''));
+  const defaultResponsavel = admins[0]?.nome ?? '';
 
   function openNewModal(coluna: string) {
     setEditingId(null);
-    setForm({ ...emptyForm, coluna });
+    setForm(emptyForm(coluna, defaultResponsavel));
     setModalOpen(true);
   }
 
@@ -118,9 +65,9 @@ export function LeadsBoard({ userName }: { userName: string }) {
       cliente: deal.cliente ?? '',
       servico: deal.servico ?? '',
       valor: deal.valor ?? '',
-      responsavel: deal.responsavel ?? '',
+      responsavel: deal.responsavel ?? defaultResponsavel,
       prioridade: deal.prioridade || 'Média',
-      coluna: deal.coluna || COLUNAS[0],
+      coluna: deal.coluna || columns[0],
       ultimoContato: deal.ultimoContato ?? '',
       contato: deal.contato ?? '',
       tags: (deal.tags ?? []).join(', '),
@@ -132,98 +79,80 @@ export function LeadsBoard({ userName }: { userName: string }) {
   function closeModal() {
     setModalOpen(false);
     setEditingId(null);
-    setForm(emptyForm);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.cliente.trim()) return;
 
-    const tags = form.tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const tags = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    const now = new Date().toISOString();
 
     if (editingId) {
-      const next = deals.map((d) =>
-        d.id === editingId
-          ? { ...d, ...form, tags, updatedBy: userName, updatedAt: new Date().toISOString() }
-          : d
-      );
-      await persist(next);
+      const existing = deals.find((d) => d.id === editingId);
+      onSave({
+        ...(existing as Deal),
+        ...form,
+        tags,
+        funil,
+        updatedBy: userName,
+        updatedAt: now,
+      });
     } else {
-      const newDeal: Deal = {
-        id: `deal_${Date.now()}`,
+      onSave({
+        id: `deal_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        funil,
         ...form,
         tags,
         createdBy: userName,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
         updatedBy: userName,
-        updatedAt: new Date().toISOString(),
-      };
-      await persist([...deals, newDeal]);
+        updatedAt: now,
+      });
     }
     closeModal();
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!editingId) return;
-    const next = deals.filter((d) => d.id !== editingId);
-    setDeals(next);
-    setSaving(true);
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'deleteDeal', id: editingId }),
-      });
-    } catch {
-      setError('Não foi possível excluir. Tente novamente.');
-    } finally {
-      setSaving(false);
-    }
+    onDelete(editingId);
     closeModal();
   }
 
   function handleDrop(coluna: string, dealId: string) {
-    const next = deals.map((d) =>
-      d.id === dealId ? { ...d, coluna, updatedBy: userName, updatedAt: new Date().toISOString() } : d
-    );
-    void persist(next);
+    const deal = deals.find((d) => d.id === dealId);
+    if (!deal) return;
+    onSave({ ...deal, coluna, updatedBy: userName, updatedAt: new Date().toISOString() });
   }
 
   const grouped = useMemo(() => {
     const map: Record<string, Deal[]> = {};
-    COLUNAS.forEach((c) => (map[c] = []));
+    columns.forEach((c) => (map[c] = []));
     deals.forEach((d) => {
-      const col = COLUNAS.includes(d.coluna as (typeof COLUNAS)[number]) ? d.coluna : COLUNAS[0];
+      const col = columns.includes(d.coluna) ? d.coluna : columns[0];
       map[col].push(d);
     });
     return map;
-  }, [deals]);
+  }, [deals, columns]);
 
   return (
     <div className="px-5 py-8">
-      <div className="mx-auto max-w-[1400px]">
+      <div className="mx-auto max-w-[1500px]">
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-black text-[#1A1A1A]">Leads</h2>
+            <h2 className="text-2xl font-black text-[#1A1A1A]">{funil}</h2>
             <p className="text-sm text-[#1A1A1A]/50 font-medium">
-              {deals.length} lead{deals.length === 1 ? '' : 's'} no funil
+              {deals.length} cartão{deals.length === 1 ? '' : 'ões'} neste funil
               {saving && <span className="ml-2 text-[#E97933]">salvando...</span>}
             </p>
           </div>
           <button
-            onClick={() => openNewModal(COLUNAS[0])}
+            onClick={() => openNewModal(columns[0])}
             className="inline-flex items-center gap-2 rounded-full border-2 border-[#1A1A1A] bg-[#E97933] px-5 py-2.5 font-black text-[#1A1A1A] transition hover:bg-[#d4692a]"
           >
-            <Plus size={17} /> Novo Lead
+            <Plus size={17} /> Novo
           </button>
         </div>
-
-        {error && (
-          <p className="mb-4 text-sm font-bold" style={{ color: '#e77f89' }}>{error}</p>
-        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-24 text-[#1A1A1A]/40">
@@ -231,7 +160,7 @@ export function LeadsBoard({ userName }: { userName: string }) {
           </div>
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-4">
-            {COLUNAS.map((coluna) => (
+            {columns.map((coluna) => (
               <div
                 key={coluna}
                 className="w-72 shrink-0 rounded-2xl border-2 border-[#1A1A1A]/10 bg-[#F0EAE3] p-3"
@@ -243,8 +172,8 @@ export function LeadsBoard({ userName }: { userName: string }) {
                 }}
               >
                 <div className="mb-3 flex items-center justify-between px-1">
-                  <h3 className="text-sm font-black text-[#1A1A1A]">{coluna}</h3>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-[#1A1A1A]/50">
+                  <h3 className="text-sm font-black text-[#1A1A1A] leading-tight">{coluna}</h3>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-bold text-[#1A1A1A]/50">
                     {grouped[coluna]?.length ?? 0}
                   </span>
                 </div>
@@ -323,7 +252,7 @@ export function LeadsBoard({ userName }: { userName: string }) {
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-black text-[#1A1A1A]">
-                {editingId ? 'Editar Lead' : 'Novo Lead'}
+                {editingId ? 'Editar' : 'Novo'} — {funil}
               </h3>
               <button onClick={closeModal} className="rounded-full p-1.5 hover:bg-[#F0EAE3]">
                 <X size={18} />
@@ -332,11 +261,37 @@ export function LeadsBoard({ userName }: { userName: string }) {
             <form onSubmit={handleSubmit} className="grid gap-3">
               <FormField label="Cliente *" value={form.cliente} onChange={(v) => setForm((f) => ({ ...f, cliente: v }))} required />
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Serviço" value={form.servico} onChange={(v) => setForm((f) => ({ ...f, servico: v }))} />
-                <FormField label="Valor" value={form.valor} onChange={(v) => setForm((f) => ({ ...f, valor: v }))} placeholder="R$ 0,00" />
+                <FormField label="Serviço / Pacote" value={form.servico} onChange={(v) => setForm((f) => ({ ...f, servico: v }))} />
+                <FormField
+                  label="Valor"
+                  value={form.valor}
+                  onChange={(v) => setForm((f) => ({ ...f, valor: formatCurrencyBRL(v) }))}
+                  placeholder="R$ 0,00"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Responsável" value={form.responsavel} onChange={(v) => setForm((f) => ({ ...f, responsavel: v }))} />
+                <label className="block">
+                  <span className="mb-1 block text-xs font-black uppercase tracking-wide text-[#1A1A1A]/50">Responsável</span>
+                  {admins.length > 0 ? (
+                    <select
+                      value={form.responsavel}
+                      onChange={(e) => setForm((f) => ({ ...f, responsavel: e.target.value }))}
+                      className="w-full rounded-xl border-2 border-[#e3e7f7] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#E97933]"
+                    >
+                      <option value="">Selecione...</option>
+                      {admins.map((a) => (
+                        <option key={a.codigo} value={a.nome}>{a.nome}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.responsavel}
+                      onChange={(e) => setForm((f) => ({ ...f, responsavel: e.target.value }))}
+                      className="w-full rounded-xl border-2 border-[#e3e7f7] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#E97933]"
+                    />
+                  )}
+                </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-black uppercase tracking-wide text-[#1A1A1A]/50">Prioridade</span>
                   <select
@@ -355,10 +310,15 @@ export function LeadsBoard({ userName }: { userName: string }) {
                   onChange={(e) => setForm((f) => ({ ...f, coluna: e.target.value }))}
                   className="w-full rounded-xl border-2 border-[#e3e7f7] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#E97933]"
                 >
-                  {COLUNAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {columns.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
-              <FormField label="Contato (telefone/e-mail)" value={form.contato} onChange={(v) => setForm((f) => ({ ...f, contato: v }))} />
+              <FormField
+                label="Telefone"
+                value={form.contato}
+                onChange={(v) => setForm((f) => ({ ...f, contato: formatPhoneBR(v) }))}
+                placeholder="(84) 9 9999-9999"
+              />
               <FormField label="Tags (separadas por vírgula)" value={form.tags} onChange={(v) => setForm((f) => ({ ...f, tags: v }))} placeholder="instagram, indicação" />
               <label className="block">
                 <span className="mb-1 block text-xs font-black uppercase tracking-wide text-[#1A1A1A]/50">Observações</span>
@@ -386,7 +346,7 @@ export function LeadsBoard({ userName }: { userName: string }) {
                     'inline-flex items-center gap-2 rounded-full border-2 border-[#1A1A1A] bg-[#E97933] px-6 py-2.5 font-black text-[#1A1A1A] transition hover:bg-[#d4692a]'
                   )}
                 >
-                  {editingId ? 'Salvar' : 'Criar Lead'}
+                  {editingId ? 'Salvar' : 'Criar'}
                 </button>
               </div>
             </form>
