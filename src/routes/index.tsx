@@ -216,13 +216,6 @@ function Home() {
         <WaveDivider fill="#2D5F8A" flip />
         <div className="mx-auto max-w-6xl px-5 py-16">
           <RetroCard dark className="relative overflow-hidden">
-            {/* decorative mascote5 (coroa) */}
-            <img
-              src="/mascote5.svg"
-              alt=""
-              aria-hidden
-              className="absolute -top-4 -right-4 w-28 h-28 object-contain opacity-90 pointer-events-none"
-            />
             <div className="relative grid md:grid-cols-2 gap-10">
               <div>
                 <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">pacote principal</span>
