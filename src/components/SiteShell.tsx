@@ -113,6 +113,18 @@ export function SiteShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1">{children}</main>
 
+      {/* ── FLOATING WHATSAPP ── */}
+      <a
+        href="https://wa.me/5584987692648"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Fale conosco pelo WhatsApp"
+        className="fixed bottom-5 right-5 z-50 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#25D366] text-white font-bold border-2 border-white shadow-lg hover:scale-105 transition-transform"
+      >
+        <MessageCircle size={20} fill="currentColor" />
+        <span className="hidden sm:inline text-sm">Fale no WhatsApp</span>
+      </a>
+
       {/* ── FOOTER ── */}
       <footer className="border-t-2 border-[#1A1A1A]" style={{ backgroundColor: '#1A1A1A' }}>
         <div className="mx-auto max-w-6xl px-5 py-10 grid gap-6 md:grid-cols-3 items-center">
