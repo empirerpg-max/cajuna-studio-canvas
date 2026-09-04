@@ -6,7 +6,7 @@ import { WaveDivider } from '@/components/WaveDivider';
 import { RetroCard } from '@/components/RetroCard';
 import { CajuMascot } from '@/components/CajuMascot';
 
-export const Route = createFileRoute('/')({ 
+export const Route = createFileRoute('/')({
   head: () => ({
     meta: [
       { title: 'Cajuna Studio — Identidade visual & posts' },
@@ -41,9 +41,6 @@ const identidade = {
 const pacotesPosts = [
   {
     nome: 'Areia',
-    preco: 'R$ 250',
-    pix: 'R$ 237,50 no pix (5% off)',
-    parcelas: 'ou 3x sem juros',
     itens: [
       '4 posts para feed (1 por semana)',
       '4 stories (1 por semana)',
@@ -54,9 +51,6 @@ const pacotesPosts = [
   },
   {
     nome: 'Ventania',
-    preco: 'R$ 433',
-    pix: 'R$ 411,35 no pix',
-    parcelas: 'ou 3x sem juros',
     itens: [
       '10 posts para feed (3 por semana)',
       '10 stories (3 por semana)',
@@ -67,9 +61,6 @@ const pacotesPosts = [
   },
   {
     nome: 'Caju',
-    preco: 'R$ 520',
-    pix: 'R$ 494,00 no pix',
-    parcelas: 'ou 3x sem juros',
     itens: [
       '12 posts para feed (3 por semana)',
       '12 stories (3 por semana)',
@@ -81,12 +72,30 @@ const pacotesPosts = [
   },
 ];
 
-const designs = [
-  { titulo: 'Estampas & Produtos', preco: 'a partir de R$ 150', desc: 'Estampas para eventos, brindes ou o que o cliente pedir.' },
-  { titulo: 'Embalagens & Rótulos', preco: 'R$ 200', desc: 'Design de embalagem, rótulo e etiquetas.' },
-  { titulo: 'Criativos para Anúncios', preco: 'R$ 60 / criativo', desc: 'Facebook Ads, Google Ads — combos com parcelamento.' },
-  { titulo: 'Kit Impressos Essencial', preco: 'R$ 200', desc: 'Cartão de visita + folder, flyer ou cardápio.' },
-  { titulo: 'Kit PDV', preco: 'R$ 200', desc: 'Banner, fachada simples, adesivagem de vitrine.' },
+const campanhas = [
+  { titulo: 'Criação de e-mails', desc: 'E-mails com finalidade em conversão, engajamento e direcionamento.' },
+  { titulo: 'SMS e WhatsApp', desc: 'Criação de campanhas de SMS ou WhatsApp.' },
+  { titulo: 'Escolha da ferramenta ideal', desc: 'Pesquisamos a melhor ferramenta para você fazer os envios, apresentamos os custos e apoiamos o uso do início ao fim.' },
+  { titulo: 'Análise de resultados', desc: 'Analisamos os resultados, validamos cenários e adaptamos as estratégias com um calendário dedicado e detalhado.' },
+];
+
+const sitesEApps = [
+  { titulo: 'Criação', desc: 'Construímos um site ou aplicativo para você aplicar a sua identidade visual, conforme a sua necessidade.' },
+  { titulo: 'Entrega', desc: 'Deixamos o aplicativo ou site pronto para você utilizar, de acordo com a sua necessidade.' },
+  { titulo: 'Acompanhamento', desc: 'Acompanhamos o site ou o app, ajustamos a rota se preciso, criamos melhorias ou adaptamos conforme a necessidade.' },
+];
+
+const impressao = [
+  { titulo: 'Do cartão ao outdoor', desc: 'Criamos desde cartão de visita até outdoor — o que sua marca precisar aparecer impresso.' },
+  { titulo: 'Melhor custo-benefício', desc: 'Procuramos a melhor empresa com custo-benefício para impressão, trazemos o orçamento e encaminhamos para a contratação.' },
+  { titulo: 'Do plano à entrega', desc: 'Planejamos, apresentamos e encaminhamos — você só aprova.' },
+];
+
+const materiaisImpressos = [
+  { titulo: 'Estampas & Produtos', desc: 'Estampas para eventos, brindes ou o que o cliente pedir.' },
+  { titulo: 'Embalagens & Rótulos', desc: 'Design de embalagem, rótulo e etiquetas.' },
+  { titulo: 'Kit Impressos Essencial', desc: 'Cartão de visita + folder, flyer ou cardápio.' },
+  { titulo: 'Kit PDV', desc: 'Banner, fachada simples, adesivagem de vitrine.' },
 ];
 
 const fadeUp: Variants = {
@@ -129,8 +138,8 @@ function Home() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="mt-5 text-lg font-medium text-[#1A1A1A]/80 max-w-lg"
             >
-              A Cajuna Studio cria identidades visuais com personalidade e cuida
-              dos seus posts pra sua marca aparecer bem todo dia.
+              Contratar a Cajuna Studio é estar sempre à frente do seu concorrente
+              e ao lado do seu cliente.
             </motion.p>
 
             <motion.div
@@ -189,9 +198,10 @@ function Home() {
           </div>
           <div className="md:col-span-3 space-y-5 text-lg text-[#1A1A1A]/75">
             <p>
-              A Cajuna é um estúdio que nasceu pra deixar as marcas mais bonitas, mais
-              humanas e mais consistentes. A gente faz identidade visual do começo ao fim
-              — do conceito ao manual — e segue cuidando da sua presença nas redes.
+              Cajuna significa <strong>Caju + Duna</strong>, originado no Rio Grande do
+              Norte e inspirado no maior cajueiro do mundo. Para além disso, Cajuna é a{' '}
+              <strong>extensão da sua marca</strong> — o crescimento de várias raízes ao
+              longo de uma vasta extensão de espaço e tempo.
             </p>
             <p>
               Trabalhamos lado a lado com você: nada de templates engessados. Cada projeto
@@ -218,8 +228,9 @@ function Home() {
                 <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">pacote principal</span>
                 <h3 className="mt-2 text-4xl md:text-5xl font-black text-white">Identidade Visual</h3>
                 <p className="mt-4 text-white/75 text-lg">
-                  Valor base fixo com ajustes conforme suas escolhas. O pacote essencial
-                  já entrega tudo que sua marca precisa pra existir bonita no mundo.
+                  Criação de logotipo, escolha de paleta de cores, tipografia e aplicação
+                  da marca no dia a dia — do conceito ao manual completo, pra sua marca
+                  saber quando, onde e como aplicar.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
@@ -227,7 +238,7 @@ function Home() {
                     search={{ servico: 'Identidade Visual' } as never}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-full border-2 border-[#E97933] bg-[#E97933] text-[#1A1A1A] font-bold hover:bg-[#d4692a] transition-colors"
                   >
-                    Quero contratar <ArrowRight size={17} />
+                    Solicitar orçamento <ArrowRight size={17} />
                   </Link>
                   <Link
                     to="/orcamento"
@@ -266,7 +277,7 @@ function Home() {
         <WaveDivider fill="#FFF8F2" />
       </section>
 
-      {/* ──────────────── PACOTES MENSAIS ──────────────── */}
+      {/* ──────────────── GERENCIAMENTO DE REDES SOCIAIS ──────────────── */}
       <section className="mx-auto max-w-6xl px-5 py-16">
         <motion.div
           className="text-center max-w-2xl mx-auto mb-12"
@@ -275,10 +286,12 @@ function Home() {
           viewport={{ once: true }}
           variants={fadeUp}
         >
-          <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">design de posts</span>
-          <h2 className="mt-3 text-4xl md:text-5xl font-black">Pacotes mensais</h2>
+          <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">gerenciamento de redes sociais</span>
+          <h2 className="mt-3 text-4xl md:text-5xl font-black">Não é só gerenciamento.</h2>
           <p className="mt-4 text-[#1A1A1A]/65 text-lg">
-            Três opções pra cuidar do seu feed sem dor de cabeça. Entrega sempre na sexta anterior.
+            É uma expansão verdadeira da sua marca para o seu público — estratégia de
+            postagens, calendário de planejamento, design de posts, edição de vídeos e
+            adaptação do material do feed pro story.
           </p>
         </motion.div>
 
@@ -298,14 +311,7 @@ function Home() {
                   <div className="text-xs font-black uppercase tracking-widest mb-2 text-[#1A1A1A]">⭐ mais escolhido</div>
                 )}
                 <h3 className="text-2xl font-black">Pacote {p.nome}</h3>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-4xl font-black">{p.preco}</span>
-                  <span className={`text-sm font-medium ${p.destaque ? 'text-[#1A1A1A]/70' : 'text-[#1A1A1A]/50'}`}>/mês</span>
-                </div>
-                <div className={`text-xs mt-1 font-medium ${p.destaque ? 'text-[#1A1A1A]/70' : 'text-[#1A1A1A]/50'}`}>
-                  {p.pix} · {p.parcelas}
-                </div>
-                <ul className="mt-6 space-y-2.5 flex-1">
+                <ul className="mt-5 space-y-2.5 flex-1">
                   {p.itens.map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm">
                       <Check size={15} className={`mt-0.5 shrink-0 ${p.destaque ? 'text-[#1A1A1A]' : 'text-[#E97933]'}`} /> {item}
@@ -321,7 +327,7 @@ function Home() {
                       : 'bg-[#E97933] text-[#1A1A1A] hover:bg-[#d4692a]'
                   }`}
                 >
-                  Contratar {p.nome} <ArrowRight size={15} />
+                  Solicitar orçamento <ArrowRight size={15} />
                 </Link>
               </RetroCard>
             </motion.div>
@@ -339,7 +345,7 @@ function Home() {
         </div>
       </section>
 
-      {/* ──────────────── DESIGNS DIVERSOS ──────────────── */}
+      {/* ──────────────── CAMPANHAS DE MARKETING ──────────────── */}
       <section className="retro-noise py-16" style={{ backgroundColor: '#E97933' }}>
         <WaveDivider fill="#E97933" flip />
         <div className="mx-auto max-w-6xl px-5">
@@ -350,16 +356,17 @@ function Home() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <span className="text-xs font-bold uppercase tracking-widest text-[#1A1A1A]/60">designs diversos</span>
-            <h2 className="mt-3 text-4xl md:text-5xl font-black text-[#1A1A1A]">Pra tudo o que vier além.</h2>
+            <span className="text-xs font-bold uppercase tracking-widest text-[#1A1A1A]/60">campanhas de marketing</span>
+            <h2 className="mt-3 text-4xl md:text-5xl font-black text-[#1A1A1A]">E-mail, SMS e WhatsApp na medida certa.</h2>
             <p className="mt-4 text-[#1A1A1A]/75 text-lg">
-              Solicitações pontuais? A gente abraça. Esses são pontos de partida — podem virar pacotes personalizados.
+              Da criação da campanha à análise dos resultados, cuidamos de cada etapa
+              pra sua mensagem chegar no momento certo.
             </p>
           </motion.div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {designs.map((d, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {campanhas.map((c, i) => (
               <motion.div
-                key={d.titulo}
+                key={c.titulo}
                 custom={i}
                 initial="hidden"
                 whileInView="visible"
@@ -367,15 +374,116 @@ function Home() {
                 variants={fadeUp}
               >
                 <RetroCard className="h-full hover:scale-[1.02] transition-transform">
-                  <h4 className="font-black text-lg">{d.titulo}</h4>
-                  <div className="text-[#E97933] text-sm font-bold mt-1">{d.preco}</div>
-                  <p className="mt-3 text-sm text-[#1A1A1A]/65">{d.desc}</p>
+                  <h4 className="font-black text-lg">{c.titulo}</h4>
+                  <p className="mt-3 text-sm text-[#1A1A1A]/65">{c.desc}</p>
                 </RetroCard>
               </motion.div>
             ))}
           </div>
         </div>
-        <WaveDivider fill="#1A1A1A" />
+        <WaveDivider fill="#2D5F8A" />
+      </section>
+
+      {/* ──────────────── SITES E APLICATIVOS ──────────────── */}
+      <section className="retro-noise" style={{ backgroundColor: '#2D5F8A' }}>
+        <WaveDivider fill="#2D5F8A" flip />
+        <div className="mx-auto max-w-6xl px-5 py-16">
+          <motion.div
+            className="max-w-2xl mb-10"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+          >
+            <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">sites e aplicativos</span>
+            <h2 className="mt-3 text-4xl md:text-5xl font-black text-white">Do zero ao ar, e depois também.</h2>
+            <p className="mt-4 text-white/75 text-lg">
+              Construímos, entregamos e continuamos por perto — ajustando a rota
+              conforme sua marca cresce.
+            </p>
+          </motion.div>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {sitesEApps.map((s, i) => (
+              <motion.div
+                key={s.titulo}
+                custom={i}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeUp}
+              >
+                <RetroCard className="h-full">
+                  <h4 className="font-black text-lg">{s.titulo}</h4>
+                  <p className="mt-3 text-sm text-[#1A1A1A]/65">{s.desc}</p>
+                </RetroCard>
+              </motion.div>
+            ))}
+          </div>
+          <div className="mt-8">
+            <Link
+              to="/orcamento"
+              search={{ servico: 'Sites e Aplicativos' } as never}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border-2 border-[#E97933] bg-[#E97933] text-[#1A1A1A] font-bold hover:bg-[#d4692a] transition-colors"
+            >
+              Solicitar orçamento <ArrowRight size={17} />
+            </Link>
+          </div>
+        </div>
+        <WaveDivider fill="#FFF8F2" />
+      </section>
+
+      {/* ──────────────── MATERIAIS PARA IMPRESSÃO ──────────────── */}
+      <section className="mx-auto max-w-6xl px-5 py-16">
+        <motion.div
+          className="max-w-2xl mb-10"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">materiais para impressão</span>
+          <h2 className="mt-3 text-4xl md:text-5xl font-black">Do cartão de visita ao outdoor.</h2>
+          <p className="mt-4 text-[#1A1A1A]/65 text-lg">
+            Cuidamos do design e também da ponte com a gráfica: pesquisamos o melhor
+            custo-benefício e encaminhamos tudo pra você.
+          </p>
+        </motion.div>
+
+        <div className="grid sm:grid-cols-3 gap-5 mb-8">
+          {impressao.map((c, i) => (
+            <motion.div
+              key={c.titulo}
+              custom={i}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeUp}
+            >
+              <RetroCard className="h-full">
+                <h4 className="font-black text-lg">{c.titulo}</h4>
+                <p className="mt-3 text-sm text-[#1A1A1A]/65">{c.desc}</p>
+              </RetroCard>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {materiaisImpressos.map((d, i) => (
+            <motion.div
+              key={d.titulo}
+              custom={i}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeUp}
+            >
+              <RetroCard className="h-full hover:scale-[1.02] transition-transform">
+                <h4 className="font-black text-base">{d.titulo}</h4>
+                <p className="mt-2 text-sm text-[#1A1A1A]/65">{d.desc}</p>
+              </RetroCard>
+            </motion.div>
+          ))}
+        </div>
       </section>
 
       {/* ──────────────── CTA FINAL ──────────────── */}
@@ -383,6 +491,7 @@ function Home() {
         className="retro-noise relative overflow-hidden"
         style={{ backgroundColor: '#1A1A1A' }}
       >
+        <WaveDivider fill="#1A1A1A" flip />
         <div className="mx-auto max-w-6xl px-5 py-20 text-center relative z-10">
           {/* mascote4 ghosted no fundo */}
           <img
