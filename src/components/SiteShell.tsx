@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import { Menu, X, Instagram, UserCircle } from 'lucide-react';
+import { Menu, X, Instagram, UserCircle, MessageCircle } from 'lucide-react';
 
 const nav = [
   { to: '/', label: 'Home' },
