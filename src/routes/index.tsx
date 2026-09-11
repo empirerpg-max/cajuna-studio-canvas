@@ -55,8 +55,8 @@ const pacotesIdentidade = [
     ],
   },
   {
-    nome: 'Cajueiro',
-    preco: 'R$ 1.000',
+    nome: 'Cajuna',
+    preco: 'A combinar',
     anterior: 'Safra',
     itens: [
       'Manual da marca completo em PDF',
@@ -69,39 +69,16 @@ const pacotesIdentidade = [
   },
 ];
 
-const pacotesPosts = [
-  {
-    nome: 'Areia',
-    itens: [
-      '4 posts para feed (1 por semana)',
-      '4 stories (1 por semana)',
-      'Legendas otimizadas + hashtags',
-      'Brinde: capa de destaque na 1ª contratação',
-    ],
-    destaque: false,
-  },
-  {
-    nome: 'Ventania',
-    itens: [
-      '10 posts para feed (3 por semana)',
-      '10 stories (3 por semana)',
-      'Legendas otimizadas + hashtags',
-      'Brinde: capa de destaque na 1ª contratação',
-    ],
-    destaque: true,
-  },
-  {
-    nome: 'Caju',
-    itens: [
-      '12 posts para feed (3 por semana)',
-      '12 stories (3 por semana)',
-      'Capa para reels',
-      'Apoio na idealização dos posts',
-      'Brinde: capa de destaque na 1ª contratação',
-    ],
-    destaque: false,
-  },
-];
+const pacoteRedesSociais = {
+  nome: 'Cajueiro',
+  itens: [
+    'Estratégia de postagens sob medida pro seu momento',
+    'Calendário de planejamento mensal',
+    'Design de posts, stories e capas de destaque',
+    'Edição de vídeos e adaptação do material do feed pro story',
+    'Legendas otimizadas + hashtags',
+  ],
+};
 
 const campanhas = [
   { titulo: 'Criação de e-mails', desc: 'E-mails com finalidade em conversão, engajamento e direcionamento.' },
@@ -328,44 +305,32 @@ function Home() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {pacotesPosts.map((p, i) => (
-            <motion.div
-              key={p.nome}
-              custom={i}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-              whileHover={{ y: -5 }}
+        <motion.div
+          className="max-w-2xl mx-auto"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <RetroCard highlighted className="flex flex-col items-center text-center">
+            <h3 className="text-2xl font-black">Pacote {pacoteRedesSociais.nome}</h3>
+            <p className="mt-1 text-sm font-bold text-[#1A1A1A]/60">Valor a combinar, feito sob medida com você</p>
+            <ul className="mt-5 space-y-2.5 text-left">
+              {pacoteRedesSociais.itens.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm">
+                  <Check size={15} className="mt-0.5 shrink-0 text-[#1A1A1A]" /> {item}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/orcamento"
+              search={{ servico: `Pacote ${pacoteRedesSociais.nome}` } as never}
+              className="mt-7 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold bg-[#1A1A1A] text-[#E97933] hover:bg-[#333] transition-colors"
             >
-              <RetroCard highlighted={p.destaque} className="flex flex-col h-full">
-                {p.destaque && (
-                  <div className="text-xs font-black uppercase tracking-widest mb-2 text-[#1A1A1A]">⭐ mais escolhido</div>
-                )}
-                <h3 className="text-2xl font-black">Pacote {p.nome}</h3>
-                <ul className="mt-5 space-y-2.5 flex-1">
-                  {p.itens.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm">
-                      <Check size={15} className={`mt-0.5 shrink-0 ${p.destaque ? 'text-[#1A1A1A]' : 'text-[#E97933]'}`} /> {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/orcamento"
-                  search={{ servico: `Pacote ${p.nome}` } as never}
-                  className={`mt-7 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-bold border-2 border-[#1A1A1A] transition-colors ${
-                    p.destaque
-                      ? 'bg-[#1A1A1A] text-white hover:bg-[#333]'
-                      : 'bg-[#E97933] text-[#1A1A1A] hover:bg-[#d4692a]'
-                  }`}
-                >
-                  Solicitar orçamento <ArrowRight size={15} />
-                </Link>
-              </RetroCard>
-            </motion.div>
-          ))}
-        </div>
+              Montar meu pacote <ArrowRight size={15} />
+            </Link>
+          </RetroCard>
+        </motion.div>
 
         <div className="mt-8 text-center">
           <Link
