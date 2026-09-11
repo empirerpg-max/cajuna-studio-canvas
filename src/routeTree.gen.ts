@@ -9,25 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PortfolioRouteImport } from './routes/portfolio'
-import { Route as OrcamentoRouteImport } from './routes/orcamento'
-import { Route as AreaClienteRouteImport } from './routes/area-cliente'
-import { Route as AdminCajunaRouteImport } from './routes/admin-cajuna'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminCajunaRouteImport } from './routes/admin-cajuna'
+import { Route as AreaClienteRouteImport } from './routes/area-cliente'
+import { Route as OrcamentoRouteImport } from './routes/orcamento'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
 
-const PortfolioRoute = PortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrcamentoRoute = OrcamentoRouteImport.update({
-  id: '/orcamento',
-  path: '/orcamento',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AreaClienteRoute = AreaClienteRouteImport.update({
-  id: '/area-cliente',
-  path: '/area-cliente',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCajunaRoute = AdminCajunaRouteImport.update({
@@ -35,9 +25,19 @@ const AdminCajunaRoute = AdminCajunaRouteImport.update({
   path: '/admin-cajuna',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AreaClienteRoute = AreaClienteRouteImport.update({
+  id: '/area-cliente',
+  path: '/area-cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrcamentoRoute = OrcamentoRouteImport.update({
+  id: '/orcamento',
+  path: '/orcamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -66,11 +66,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/admin-cajuna'
-    | '/area-cliente'
-    | '/orcamento'
-    | '/portfolio'
+    '/' | '/admin-cajuna' | '/area-cliente' | '/orcamento' | '/portfolio'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/admin-cajuna' | '/area-cliente' | '/orcamento' | '/portfolio'
   id:
@@ -92,25 +88,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/portfolio': {
-      id: '/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof PortfolioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orcamento': {
-      id: '/orcamento'
-      path: '/orcamento'
-      fullPath: '/orcamento'
-      preLoaderRoute: typeof OrcamentoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/area-cliente': {
-      id: '/area-cliente'
-      path: '/area-cliente'
-      fullPath: '/area-cliente'
-      preLoaderRoute: typeof AreaClienteRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-cajuna': {
@@ -120,11 +102,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCajunaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/area-cliente': {
+      id: '/area-cliente'
+      path: '/area-cliente'
+      fullPath: '/area-cliente'
+      preLoaderRoute: typeof AreaClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orcamento': {
+      id: '/orcamento'
+      path: '/orcamento'
+      fullPath: '/orcamento'
+      preLoaderRoute: typeof OrcamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

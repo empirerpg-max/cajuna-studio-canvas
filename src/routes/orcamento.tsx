@@ -25,7 +25,10 @@ export const Route = createFileRoute('/orcamento')({
 });
 
 const SERVICOS = [
-  'Identidade Visual',
+  'Identidade Visual — Maturi',
+  'Identidade Visual — Caju',
+  'Identidade Visual — Safra',
+  'Identidade Visual — Cajueiro',
   'Pacote Areia',
   'Pacote Ventania',
   'Pacote Caju',
