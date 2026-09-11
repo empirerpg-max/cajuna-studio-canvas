@@ -18,25 +18,56 @@ export const Route = createFileRoute('/')({
   component: Home,
 });
 
-const identidade = {
-  base: [
-    'Logo principal',
-    'Variações do logo',
-    'Elementos de apoio',
-    'Tipografias da marca',
-    'Cartão de visita',
-    'Aplicação da marca em 4 mockups',
-    'Manual da marca',
-    'Registro de anterioridade',
-  ],
-  adicionais: [
-    'Aplicações extras da marca',
-    'Ícones de apoio',
-    'Modelos para redes sociais',
-    'Avatar de rede social',
-    'Banner para redes sociais',
-  ],
-};
+const pacotesIdentidade = [
+  {
+    nome: 'Maturi',
+    preco: 'R$ 200',
+    anterior: null as string | null,
+    itens: [
+      'Briefing simples',
+      'Logotipo em versão principal',
+      'Versões positiva e negativa (preto e branco)',
+      'Arquivos em PNG e JPG',
+    ],
+  },
+  {
+    nome: 'Caju',
+    preco: 'R$ 350',
+    anterior: 'Maturi',
+    itens: [
+      'Logotipo colorido',
+      'Paleta de cores principal (HEX, RGB e CMYK)',
+      'Tipografia principal',
+      'Arquivos vetoriais (SVG e PDF)',
+    ],
+  },
+  {
+    nome: 'Safra',
+    preco: 'R$ 600',
+    anterior: 'Caju',
+    itens: [
+      'Briefing completo com apresentação do conceito da marca',
+      'Logotipo em três versões (horizontal, vertical e símbolo)',
+      'Paleta secundária com nomes e significado das cores',
+      'Tipografia secundária com hierarquia (título, subtítulo e parágrafo)',
+      'Aplicação sobre fundos coloridos e prova de contraste',
+      'Kit básico de redes sociais (foto de perfil e capas de destaques)',
+    ],
+  },
+  {
+    nome: 'Cajueiro',
+    preco: 'R$ 1.000',
+    anterior: 'Safra',
+    itens: [
+      'Manual da marca completo em PDF',
+      'Área de proteção e redução mínima',
+      'Texturas (arquivos editáveis, PDF, SVG, PNG e JPG)',
+      'Elementos de apoio',
+      'Templates de posts',
+      'Mockups da marca aplicada',
+    ],
+  },
+];
 
 const pacotesPosts = [
   {
@@ -215,57 +246,66 @@ function Home() {
       <section className="retro-noise" style={{ backgroundColor: '#2D5F8A' }}>
         <WaveDivider fill="#2D5F8A" flip />
         <div className="mx-auto max-w-6xl px-5 py-16">
-          <RetroCard dark className="relative overflow-hidden">
-            <div className="relative grid md:grid-cols-2 gap-10">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">pacote principal</span>
-                <h3 className="mt-2 text-4xl md:text-5xl font-black text-white">Identidade Visual</h3>
-                <p className="mt-4 text-white/75 text-lg">
-                  Criação de logotipo, escolha de paleta de cores, tipografia e aplicação
-                  da marca no dia a dia — do conceito ao manual completo, pra sua marca
-                  saber quando, onde e como aplicar.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link
-                    to="/orcamento"
-                    search={{ servico: 'Identidade Visual' } as never}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full border-2 border-[#E97933] bg-[#E97933] text-[#1A1A1A] font-bold hover:bg-[#d4692a] transition-colors"
-                  >
-                    Solicitar orçamento <ArrowRight size={17} />
-                  </Link>
-                  <Link
-                    to="/orcamento"
-                    search={{ servico: 'Conversar com uma pessoa' } as never}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full border-2 border-white/30 text-white font-bold hover:border-white/60 transition-colors"
-                  >
-                    <MessageCircle size={17} /> Falar com uma pessoa
-                  </Link>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-bold text-lg text-white mb-3">No pacote base</h4>
-                  <ul className="space-y-2">
-                    {identidade.base.map((i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-                        <Check size={15} className="text-[#E97933] mt-0.5 shrink-0" /> {i}
+          <motion.div
+            className="max-w-2xl mb-10"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+          >
+            <span className="text-xs font-bold uppercase tracking-widest text-[#E97933]">identidade visual</span>
+            <h2 className="mt-3 text-4xl md:text-5xl font-black text-white">Do logo simples ao manual completo.</h2>
+            <p className="mt-4 text-white/75 text-lg">
+              Quatro pacotes que crescem junto com a sua marca — cada um leva tudo do
+              anterior, mais o que sua fase pede.
+            </p>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {pacotesIdentidade.map((p, i) => (
+              <motion.div
+                key={p.nome}
+                custom={i}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeUp}
+                whileHover={{ y: -5 }}
+              >
+                <RetroCard className="flex flex-col h-full">
+                  <h3 className="text-xl font-black">{p.nome}</h3>
+                  <div className="mt-2 text-3xl font-black">{p.preco}</div>
+                  <ul className="mt-5 space-y-2 flex-1">
+                    {p.anterior && (
+                      <li className="text-sm font-bold text-[#E97933]">Tudo do {p.anterior} +</li>
+                    )}
+                    {p.itens.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm">
+                        <Check size={15} className="mt-0.5 shrink-0 text-[#E97933]" /> {item}
                       </li>
                     ))}
                   </ul>
-                </div>
-                <div>
-                  <h4 className="font-bold text-lg text-white mb-3">Adicionais</h4>
-                  <ul className="space-y-2">
-                    {identidade.adicionais.map((i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-                        <Check size={15} className="text-[#E97933] mt-0.5 shrink-0" /> {i}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </RetroCard>
+                  <Link
+                    to="/orcamento"
+                    search={{ servico: `Identidade Visual — ${p.nome}` } as never}
+                    className="mt-7 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-bold border-2 border-[#1A1A1A] bg-[#E97933] text-[#1A1A1A] hover:bg-[#d4692a] transition-colors"
+                  >
+                    Solicitar orçamento <ArrowRight size={15} />
+                  </Link>
+                </RetroCard>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-8">
+            <Link
+              to="/orcamento"
+              search={{ servico: 'Conversar com uma pessoa' } as never}
+              className="inline-flex items-center gap-2 text-sm font-bold text-white/80 hover:underline"
+            >
+              <MessageCircle size={15} /> Prefiro falar com uma pessoa antes
+            </Link>
+          </div>
         </div>
         <WaveDivider fill="#FFF8F2" />
       </section>
