@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { motion, type Variants } from 'framer-motion';
-import { ArrowRight, Check, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, MessageCircle } from 'lucide-react';
 import { SiteShell } from '@/components/SiteShell';
 import { WaveDivider } from '@/components/WaveDivider';
 import { RetroCard } from '@/components/RetroCard';
