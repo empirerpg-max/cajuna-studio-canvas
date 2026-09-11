@@ -125,7 +125,7 @@ function Home() {
               transition={{ duration: 0.5 }}
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full border-2 border-[#1A1A1A] bg-white text-[#1A1A1A] text-xs font-bold uppercase tracking-widest mb-5"
             >
-              <Sparkles size={13} /> estúdio de identidade visual
+              estúdio de identidade visual
             </motion.div>
 
             <motion.h1
