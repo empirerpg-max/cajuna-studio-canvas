@@ -288,7 +288,7 @@ function Home() {
                   <Link
                     to="/orcamento"
                     search={{ servico: `Identidade Visual — ${p.nome}` } as never}
-                    className="mt-7 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-bold border-2 border-[#1A1A1A] bg-[#E97933] text-[#1A1A1A] hover:bg-[#d4692a] transition-colors"
+                    className="mt-7 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold bg-[#E97933] text-[#2D5F8A] hover:bg-[#d4692a] transition-colors"
                   >
                     Solicitar orçamento <ArrowRight size={15} />
                   </Link>
