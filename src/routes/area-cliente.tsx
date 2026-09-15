@@ -230,7 +230,7 @@ function AreaCliente() {
       : parseInt(String(clienteData?.progresso ?? '0'), 10) || 0;
 
   return (
-    <SiteShell>
+    <SiteShell hideWhatsApp={view === 'briefing'}>
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
