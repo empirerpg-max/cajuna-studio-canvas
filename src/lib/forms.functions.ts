@@ -8,7 +8,7 @@ import { z } from "zod";
  * Cole a URL gerada na variável de ambiente APPS_SCRIPT_URL.
  */
 
-const FormKind = z.enum(["orcamento", "briefing", "contratacao"]);
+const FormKind = z.enum(["orcamento", "briefing", "contratacao", "briefing_redes_sociais"]);
 
 const schema = z.object({
   kind: FormKind,
