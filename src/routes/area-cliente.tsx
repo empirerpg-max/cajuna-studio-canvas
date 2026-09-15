@@ -401,7 +401,7 @@ function AreaCliente() {
                         <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">
                           Próxima reunião
                         </p>
-                        <p className="font-black text-[#1A1A1A]">{clienteData.proxima_reuniao}</p>
+                        <p className="font-black text-[#1A1A1A]">{formatDateTimeBR(clienteData.proxima_reuniao)}</p>
                       </div>
                     )}
 
@@ -467,7 +467,7 @@ function AreaCliente() {
                 <h2 className="font-black text-[#1A1A1A]">Contrato</h2>
                 {[
                   { label: 'Status', value: clienteData?.status_contrato ?? 'Ativo' },
-                  { label: 'Data de início', value: clienteData?.data_contrato ?? '—' },
+                  { label: 'Data de início', value: clienteData?.data_contrato ? formatDateTimeBR(clienteData.data_contrato) : '—' },
                   { label: 'Serviço', value: clienteData?.servico ?? clienteUser?.tipo },
                 ].map(({ label, value }) => (
                   <div
