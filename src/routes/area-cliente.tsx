@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SiteShell } from '@/components/SiteShell';
 import { BriefingWizard, type ClienteUser } from '@/components/BriefingWizard';
+import { BriefingRedesSociaisWizard } from '@/components/BriefingRedesSociaisWizard';
+import { formatDateBR, formatDateTimeBR } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import {
   LogOut,
@@ -11,6 +13,8 @@ import {
   CheckCircle,
   CheckCircle2,
   Download,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 
 export const Route = createFileRoute('/area-cliente')({
@@ -43,7 +47,17 @@ interface ClienteData {
   arquivos_links?: string;
   prazo_etapa?: string;
   email_contato?: string;
+  contrato_link?: string;
+  contrato_data?: string;
   _prazo_info?: { atrasado: boolean; diasRestantes: number } | null;
+}
+
+interface BriefingRS {
+  numero: number;
+  status: string;
+  conteudo?: string;
+  prazo_entrega?: string;
+  criado_em?: string;
 }
 
 const navItems: { id: View; label: string }[] = [
@@ -55,6 +69,8 @@ const navItems: { id: View; label: string }[] = [
 ];
 
 const ETAPAS = ['Briefing', 'Criação', 'Revisão', 'Entrega', 'Concluído'];
+
+const SERVICO_REDES_SOCIAIS = 'gerenciamento de redes sociais';
 
 function AreaCliente() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -68,6 +84,22 @@ function AreaCliente() {
   const [showCodigo, setShowCodigo] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [briefingStatus, setBriefingStatus] = useState('pendente');
+  const [briefingsRS, setBriefingsRS] = useState<BriefingRS[]>([]);
+
+  const isRedesSociais =
+    (clienteData?.servico ?? '').trim().toLowerCase() === SERVICO_REDES_SOCIAIS;
+
+  async function fetchBriefingsRS(codigoContrato: string) {
+    try {
+      const res = await fetch(
+        `${API_URL}?action=getBriefingsRS&codigo=${encodeURIComponent(codigoContrato)}`
+      );
+      const json = await res.json();
+      if (json.ok) setBriefingsRS(json.briefings ?? []);
+    } catch {
+      // silently fail
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -117,6 +149,12 @@ function AreaCliente() {
     }
   }
 
+  useEffect(() => {
+    if (isRedesSociais && clienteUser?.codigo_contrato) {
+      void fetchBriefingsRS(clienteUser.codigo_contrato);
+    }
+  }, [isRedesSociais, clienteUser?.codigo_contrato]);
+
   function handleLogout() {
     setLoggedIn(false);
     setClienteUser(null);
@@ -125,6 +163,7 @@ function AreaCliente() {
     setCodigoUnico('');
     setView('inicio');
     setBriefingStatus('pendente');
+    setBriefingsRS([]);
   }
 
   if (!loggedIn) {
@@ -251,48 +290,97 @@ function AreaCliente() {
                   </div>
                 ) : (
                   <>
-                    <div className="rounded-2xl border p-6" style={{ borderColor: '#e3e7f7' }}>
-                      <h2 className="font-black text-[#1A1A1A] mb-4">Status do Projeto</h2>
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-2xl font-black" style={{ color: '#E97933' }}>
-                          {clienteData?.etapa_atual ?? 'Briefing'}
-                        </span>
-                        <span
-                          className="rounded-full px-3 py-1 text-xs font-bold"
-                          style={{ background: '#FFF3EB', color: '#E97933' }}
-                        >
-                          {clienteData?.status_projeto ?? 'Em andamento'}
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-[#f0f0f0]">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${progresso}%`, background: '#E97933' }}
-                        />
-                      </div>
-                      <p className="mt-1 text-right text-xs font-bold text-[#1A1A1A]/40">
-                        {progresso}%
-                      </p>
-                      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-                        {ETAPAS.map((etapa, i) => (
-                          <div key={etapa} className="flex min-w-fit flex-col items-center gap-1">
-                            <div
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full text-xs font-black',
-                                i < etapaIndex
-                                  ? 'bg-[#E97933] text-white'
-                                  : i === etapaIndex
-                                  ? 'border-2 border-[#E97933] text-[#E97933]'
-                                  : 'bg-[#f0f0f0] text-[#1A1A1A]/30'
-                              )}
-                            >
-                              {i < etapaIndex ? <CheckCircle size={14} /> : i + 1}
-                            </div>
-                            <span className="text-[10px] font-bold text-[#1A1A1A]/50">{etapa}</span>
+                    {isRedesSociais ? (
+                      <div className="rounded-2xl border p-6" style={{ borderColor: '#e3e7f7' }}>
+                        <div className="mb-4 flex items-center justify-between">
+                          <h2 className="font-black text-[#1A1A1A]">Briefings enviados</h2>
+                          <span
+                            className="rounded-full px-3 py-1 text-xs font-bold"
+                            style={{ background: '#FFF3EB', color: '#E97933' }}
+                          >
+                            {clienteData?.status_projeto ?? 'Em andamento'}
+                          </span>
+                        </div>
+                        {briefingsRS.length === 0 ? (
+                          <p className="text-sm font-medium text-[#1A1A1A]/40">
+                            Nenhum briefing enviado ainda. Vá na aba "Briefing" pra solicitar seu primeiro conteúdo.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {briefingsRS
+                              .slice()
+                              .sort((a, b) => b.numero - a.numero)
+                              .map((b) => (
+                                <div
+                                  key={b.numero}
+                                  className="rounded-xl border p-4"
+                                  style={{ borderColor: '#f0f0f0' }}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-black text-[#1A1A1A]">Briefing {b.numero}</span>
+                                    <span
+                                      className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                                      style={{ background: '#FFF3EB', color: '#E97933' }}
+                                    >
+                                      {b.status || 'Enviado'}
+                                    </span>
+                                  </div>
+                                  {b.conteudo && (
+                                    <p className="mt-1.5 text-sm text-[#1A1A1A]/60">{b.conteudo}</p>
+                                  )}
+                                  <p className="mt-1.5 text-xs font-bold text-[#1A1A1A]/30">
+                                    Enviado em {formatDateTimeBR(b.criado_em)}
+                                    {b.prazo_entrega ? ` · Prazo: ${b.prazo_entrega}` : ''}
+                                  </p>
+                                </div>
+                              ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </div>
+                    ) : (
+                      <div className="rounded-2xl border p-6" style={{ borderColor: '#e3e7f7' }}>
+                        <h2 className="font-black text-[#1A1A1A] mb-4">Status do Projeto</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="text-2xl font-black" style={{ color: '#E97933' }}>
+                            {clienteData?.etapa_atual ?? 'Briefing'}
+                          </span>
+                          <span
+                            className="rounded-full px-3 py-1 text-xs font-bold"
+                            style={{ background: '#FFF3EB', color: '#E97933' }}
+                          >
+                            {clienteData?.status_projeto ?? 'Em andamento'}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-[#f0f0f0]">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${progresso}%`, background: '#E97933' }}
+                          />
+                        </div>
+                        <p className="mt-1 text-right text-xs font-bold text-[#1A1A1A]/40">
+                          {progresso}%
+                        </p>
+                        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                          {ETAPAS.map((etapa, i) => (
+                            <div key={etapa} className="flex min-w-fit flex-col items-center gap-1">
+                              <div
+                                className={cn(
+                                  'flex h-7 w-7 items-center justify-center rounded-full text-xs font-black',
+                                  i < etapaIndex
+                                    ? 'bg-[#E97933] text-white'
+                                    : i === etapaIndex
+                                    ? 'border-2 border-[#E97933] text-[#E97933]'
+                                    : 'bg-[#f0f0f0] text-[#1A1A1A]/30'
+                                )}
+                              >
+                                {i < etapaIndex ? <CheckCircle size={14} /> : i + 1}
+                              </div>
+                              <span className="text-[10px] font-bold text-[#1A1A1A]/50">{etapa}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {clienteData?.mensagem_equipe && (
                       <div
@@ -328,7 +416,7 @@ function AreaCliente() {
                         <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-1">
                           Prazo da etapa
                         </p>
-                        <p className="font-black text-[#1A1A1A]">{clienteData.prazo_etapa}</p>
+                        <p className="font-black text-[#1A1A1A]">{formatDateBR(clienteData.prazo_etapa)}</p>
                         {clienteData._prazo_info && (
                           <p
                             className={cn(
@@ -393,13 +481,74 @@ function AreaCliente() {
                     <p className="mt-0.5 font-bold text-[#1A1A1A]">{value}</p>
                   </div>
                 ))}
+
+                <div className="border-t pt-4" style={{ borderColor: '#f0f0f0' }}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#1A1A1A]/40 mb-2">
+                    Arquivo do contrato
+                  </p>
+                  {clienteData?.contrato_link ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-[#1A1A1A]/40">
+                          {clienteData.contrato_data
+                            ? `Enviado em ${formatDateTimeBR(clienteData.contrato_data)}`
+                            : ''}
+                        </p>
+                        <div className="flex gap-2">
+                          <a
+                            href={clienteData.contrato_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition hover:border-[#E97933]/40"
+                            style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+                          >
+                            <ExternalLink size={13} /> Abrir
+                          </a>
+                          <a
+                            href={clienteData.contrato_link}
+                            download
+                            className="inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition hover:border-[#E97933]/40"
+                            style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+                          >
+                            <Download size={13} /> Baixar
+                          </a>
+                        </div>
+                      </div>
+                      <div
+                        className="overflow-hidden rounded-xl border"
+                        style={{ borderColor: '#e3e7f7' }}
+                      >
+                        <iframe
+                          src={clienteData.contrato_link}
+                          title="Contrato"
+                          className="h-[480px] w-full"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="flex items-center gap-2 text-sm font-medium text-[#1A1A1A]/40">
+                      <FileText size={16} /> Nenhum arquivo de contrato disponível ainda.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
             {/* BRIEFING */}
             {view === 'briefing' && clienteUser && (
               <>
-                {briefingStatus === 'enviado' ? (
+                {isRedesSociais ? (
+                  <BriefingRedesSociaisWizard
+                    key={briefingsRS.length}
+                    clienteUser={clienteUser}
+                    onEnviado={(numero) => {
+                      setBriefingsRS((prev) => [
+                        ...prev,
+                        { numero, status: 'Enviado', criado_em: new Date().toISOString() },
+                      ]);
+                    }}
+                  />
+                ) : briefingStatus === 'enviado' ? (
                   <div
                     className="rounded-2xl border p-8 text-center"
                     style={{ borderColor: '#e3e7f7' }}
