@@ -24,6 +24,11 @@ export const Route = createFileRoute('/orcamento')({
   component: Orcamento,
 });
 
+// Apps Script da Área do Cliente/CRM — usado só pra criar o card do lead
+// automaticamente no quadro "Leads" do painel admin.
+const CLIENT_API_URL =
+  'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
+
 const SERVICOS = [
   'Identidade Visual — Maturi',
   'Identidade Visual — Caju',
@@ -77,6 +82,24 @@ function Orcamento() {
       setDone(true);
       toast.success('Recebido! Em breve respondemos com tudo.');
       (e.target as HTMLFormElement).reset();
+
+      // Cria o card do lead no CRM (quadro Leads do painel admin). Não
+      // bloqueia o sucesso do envio se isso falhar por qualquer motivo.
+      try {
+        await fetch(CLIENT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'addLead',
+            cliente: fields.nome,
+            servico: fields.servico,
+            contato: fields.whatsapp || fields.email,
+            obs: fields.mensagem,
+          }),
+        });
+      } catch {
+        // silencioso — o pedido já foi recebido normalmente
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar.');
     } finally {
