@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye, FileText } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
@@ -196,12 +196,16 @@ export function ContentCalendar({
                             </div>
                           )}
                           {!temImagem && (
-                            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#1A1A1A] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
-                              <FileText size={8} />
-                              Conteúdo escrito
-                            </span>
+                            <div className="flex justify-center py-1.5">
+                              <ImageOff size={30} strokeWidth={1.4} className="text-[#1A1A1A]/20" />
+                            </div>
                           )}
-                          <p className="whitespace-pre-line text-[11px] font-bold leading-snug text-[#1A1A1A] break-words">
+                          <p
+                            className={cn(
+                              'whitespace-pre-line text-[11px] font-bold leading-snug break-words',
+                              temImagem ? 'text-[#1A1A1A]' : 'text-center text-[#1A1A1A]/60'
+                            )}
+                          >
                             {item['Título']}
                           </p>
                           {item['Funil'] && item['Nome do funil'] && (
@@ -369,23 +373,15 @@ function InstaPreviewModal({
 function FeedThumbnail({ item, onClick }: { item: CalendarItem; onClick: () => void }) {
   const slides = useMemo(() => imageSlides(item), [item]);
   const first = slides[0];
-  const tipo = (item['Tipo'] || '').trim();
-  const tipoStyle = TIPO_STYLE[tipo];
 
   return (
     <button type="button" onClick={onClick} className="relative aspect-square w-full overflow-hidden bg-[#141414]">
       {first?.type === 'image' ? (
         <img src={first.url} alt={item['Título'] || 'Post'} className="h-full w-full object-cover" draggable={false} />
       ) : (
-        <div className="flex h-full w-full flex-col justify-between p-2.5">
-          <span
-            className="inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-[#141414]"
-            style={{ backgroundColor: tipoStyle?.dot || '#E97933' }}
-          >
-            <FileText size={8} />
-            Escrito
-          </span>
-          <p className="line-clamp-4 whitespace-pre-line text-[10px] font-black uppercase leading-tight text-white">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center">
+          <ImageOff size={44} strokeWidth={1.4} className="text-white/25" />
+          <p className="line-clamp-3 whitespace-pre-line text-[9px] font-bold uppercase leading-tight text-white/60">
             {first?.type === 'text' ? first.content : item['Título']}
           </p>
         </div>
@@ -410,52 +406,30 @@ function EditorialTextSlide({
   totalSlides: number;
 }) {
   const accent = tipoStyle?.dot || '#E97933';
-  const sizeClass =
-    text.length > 140
-      ? 'text-lg sm:text-xl'
-      : text.length > 80
-        ? 'text-xl sm:text-2xl'
-        : text.length > 40
-          ? 'text-2xl sm:text-3xl'
-          : 'text-3xl sm:text-4xl';
 
   return (
-    <div className="retro-noise relative flex h-full w-full flex-col justify-between overflow-hidden bg-[#141414] p-6">
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-2xl"
-        style={{ backgroundColor: accent }}
-      />
-
-      <div className="relative space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
-            {dia ? `Dia ${dia}` : 'Post'}
-            {totalSlides > 1 ? ` · ${slideIndex + 1}/${totalSlides}` : ''}
-          </span>
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
-        </div>
-
-        <span
-          className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-[#141414]"
-          style={{ backgroundColor: accent }}
-        >
-          <FileText size={11} />
-          Conteúdo escrito · imagem em produção
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#141414] p-6">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
+          {dia ? `Dia ${dia}` : 'Post'}
+          {totalSlides > 1 ? ` · ${slideIndex + 1}/${totalSlides}` : ''}
         </span>
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
       </div>
 
-      <p className={cn('relative font-black uppercase leading-[1.1] text-white whitespace-pre-line', sizeClass)}>
-        {text}
-      </p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
+        <ImageOff size={76} strokeWidth={1.3} className="text-white/25" />
+        <p className="whitespace-pre-line text-sm font-bold leading-snug text-white/70">{text}</p>
+      </div>
 
-      <div className="relative flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <span
           className="rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white"
           style={{ borderColor: accent }}
         >
           {tipo || 'Post'}
         </span>
-        <div className="h-1 w-14 rounded-full" style={{ backgroundColor: accent }} />
+        <span className="text-[9px] font-bold uppercase tracking-wide text-white/40">Imagem em produção</span>
       </div>
     </div>
   );
