@@ -201,7 +201,7 @@ export function ContentCalendar({
                               Conteúdo escrito
                             </span>
                           )}
-                          <p className="text-[11px] font-bold leading-snug text-[#1A1A1A] break-words">
+                          <p className="whitespace-pre-line text-[11px] font-bold leading-snug text-[#1A1A1A] break-words">
                             {item['Título']}
                           </p>
                           {item['Funil'] && item['Nome do funil'] && (
@@ -212,7 +212,7 @@ export function ContentCalendar({
                         </div>
                       ) : (
                         item['Título'] && (
-                          <p className="mt-2 text-[11px] italic leading-snug text-[#1A1A1A]/40">
+                          <p className="mt-2 whitespace-pre-line text-[11px] italic leading-snug text-[#1A1A1A]/40">
                             {item['Título']}
                           </p>
                         )
@@ -385,7 +385,7 @@ function FeedThumbnail({ item, onClick }: { item: CalendarItem; onClick: () => v
             <FileText size={8} />
             Escrito
           </span>
-          <p className="line-clamp-4 text-[10px] font-black uppercase leading-tight text-white">
+          <p className="line-clamp-4 whitespace-pre-line text-[10px] font-black uppercase leading-tight text-white">
             {first?.type === 'text' ? first.content : item['Título']}
           </p>
         </div>
