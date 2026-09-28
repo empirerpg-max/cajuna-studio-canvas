@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
@@ -107,6 +107,7 @@ export function ContentCalendar({
   onComment?: (item: CalendarItem, comentario: string) => void;
 }) {
   const [openItem, setOpenItem] = useState<CalendarItem | null>(null);
+  const [previewMes, setPreviewMes] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
@@ -139,10 +140,20 @@ export function ContentCalendar({
       {grouped.map(([mes, mesItems]) => (
         <div key={mes} className="overflow-hidden rounded-3xl border-2 border-[#1A1A1A]">
           {/* Header estilo calendário editorial */}
-          <div className="p-5" style={{ backgroundColor: '#1A1A1A' }}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Calendário Editorial</p>
-            <h2 className="mt-1 text-2xl font-black uppercase text-white">{mes}</h2>
-            <p className="mt-1 text-xs font-bold text-[#E97933]">{clienteNome}</p>
+          <div className="flex items-start justify-between gap-4 p-5" style={{ backgroundColor: '#1A1A1A' }}>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Calendário Editorial</p>
+              <h2 className="mt-1 text-2xl font-black uppercase text-white">{mes}</h2>
+              <p className="mt-1 text-xs font-bold text-[#E97933]">{clienteNome}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewMes(mes)}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/20"
+            >
+              <Eye size={14} />
+              Prévia
+            </button>
           </div>
 
           {/* Grid de dias da semana */}
@@ -219,6 +230,20 @@ export function ContentCalendar({
       </div>
 
       <AnimatePresence>
+        {previewMes && (
+          <InstaPreviewModal
+            items={grouped.find(([mes]) => mes === previewMes)?.[1] || []}
+            clienteNome={clienteNome}
+            onClose={() => setPreviewMes(null)}
+            onOpenItem={(item) => {
+              setPreviewMes(null);
+              setOpenItem(item);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {openItem && (
           <PostPreviewModal
             item={items.find((it) => it._row === openItem._row) || openItem}
@@ -230,6 +255,129 @@ export function ContentCalendar({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function InstaPreviewModal({
+  items,
+  clienteNome,
+  onClose,
+  onOpenItem,
+}: {
+  items: CalendarItem[];
+  clienteNome: string;
+  onClose: () => void;
+  onOpenItem: (item: CalendarItem) => void;
+}) {
+  const grupos = useMemo(() => {
+    const map = new Map<string, CalendarItem[]>();
+    items
+      .filter((item) => (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim')
+      .forEach((item) => {
+        const handle = (item['Insta'] || '').trim() || clienteNome;
+        if (!map.has(handle)) map.set(handle, []);
+        map.get(handle)!.push(item);
+      });
+    return Array.from(map.entries());
+  }, [items, clienteNome]);
+
+  const [activeHandle, setActiveHandle] = useState(grupos[0]?.[0] || clienteNome);
+  const posts = grupos.find(([handle]) => handle === activeHandle)?.[1] || [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1A1A1A]/80 p-4 backdrop-blur-sm md:p-10"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="mt-6 w-full max-w-lg overflow-hidden rounded-3xl border-2 border-[#1A1A1A] bg-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: '#f0f0f0' }}>
+          <div className="flex items-center gap-1.5 text-sm font-black text-[#1A1A1A]">
+            <Grid3x3 size={16} />
+            Prévia do Feed
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#F0EAE3]">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Tabs de conta, quando houver mais de um @ */}
+        {grupos.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto border-b px-4 py-2.5" style={{ borderColor: '#f0f0f0' }}>
+            {grupos.map(([handle]) => (
+              <button
+                key={handle}
+                type="button"
+                onClick={() => setActiveHandle(handle)}
+                className={cn(
+                  'shrink-0 rounded-full px-3.5 py-1.5 text-xs font-black transition',
+                  activeHandle === handle
+                    ? 'bg-[#1A1A1A] text-white'
+                    : 'bg-[#F0EAE3] text-[#1A1A1A]/60 hover:bg-[#F0EAE3]/70'
+                )}
+              >
+                @{handle}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Perfil estilo Instagram */}
+        <div className="flex items-center gap-4 p-5">
+          <div
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-[#1A1A1A] text-xl font-black text-white"
+            style={{ backgroundColor: '#E97933' }}
+          >
+            {activeHandle.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black text-[#1A1A1A]">@{activeHandle}</p>
+            <p className="text-xs font-bold text-[#1A1A1A]/50">{posts.length} posts programados</p>
+          </div>
+        </div>
+
+        {/* Grid de posts */}
+        {posts.length === 0 ? (
+          <p className="px-5 pb-6 text-sm text-[#1A1A1A]/40">Nenhum conteúdo programado ainda.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-0.5 border-t" style={{ borderColor: '#f0f0f0' }}>
+            {posts.map((item) => (
+              <FeedThumbnail key={item._row} item={item} onClick={() => onOpenItem(item)} />
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function FeedThumbnail({ item, onClick }: { item: CalendarItem; onClick: () => void }) {
+  const slides = useMemo(() => imageSlides(item), [item]);
+  const first = slides[0];
+  const tipo = (item['Tipo'] || '').trim();
+  const tipoStyle = TIPO_STYLE[tipo];
+
+  return (
+    <button type="button" onClick={onClick} className="relative aspect-square w-full overflow-hidden bg-[#141414]">
+      {first?.type === 'image' ? (
+        <img src={first.url} alt={item['Título'] || 'Post'} className="h-full w-full object-cover" draggable={false} />
+      ) : (
+        <div className="flex h-full w-full flex-col justify-between p-2.5">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tipoStyle?.dot || '#E97933' }} />
+          <p className="line-clamp-4 text-[10px] font-black uppercase leading-tight text-white">
+            {first?.type === 'text' ? first.content : item['Título']}
+          </p>
+        </div>
+      )}
+    </button>
   );
 }
 
