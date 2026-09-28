@@ -16,6 +16,10 @@ import {
   Download,
   FileText,
   ExternalLink,
+  Table,
+  Presentation,
+  File,
+  ChevronDown,
 } from 'lucide-react';
 
 export const Route = createFileRoute('/area-cliente')({
@@ -30,6 +34,49 @@ export const Route = createFileRoute('/area-cliente')({
 
 const API_URL =
   'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
+
+type ArquivoKind = 'doc' | 'sheet' | 'slide' | 'drive' | 'other';
+
+interface ArquivoInfo {
+  kind: ArquivoKind;
+  label: string;
+  openUrl: string;
+  previewUrl: string | null;
+}
+
+function parseArquivoLink(raw: string): ArquivoInfo {
+  const url = raw.trim();
+
+  const docMatch = url.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
+  if (docMatch) {
+    return { kind: 'doc', label: 'Google Docs', openUrl: url, previewUrl: `https://docs.google.com/document/d/${docMatch[1]}/preview` };
+  }
+
+  const sheetMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (sheetMatch) {
+    return { kind: 'sheet', label: 'Google Sheets', openUrl: url, previewUrl: `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/preview` };
+  }
+
+  const slideMatch = url.match(/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+  if (slideMatch) {
+    return { kind: 'slide', label: 'Google Slides', openUrl: url, previewUrl: `https://docs.google.com/presentation/d/${slideMatch[1]}/embed` };
+  }
+
+  const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch) {
+    return { kind: 'drive', label: 'Arquivo do Drive', openUrl: url, previewUrl: `https://drive.google.com/file/d/${driveMatch[1]}/preview` };
+  }
+
+  return { kind: 'other', label: 'Arquivo', openUrl: url, previewUrl: null };
+}
+
+const ARQUIVO_ICON: Record<ArquivoKind, typeof FileText> = {
+  doc: FileText,
+  sheet: Table,
+  slide: Presentation,
+  drive: File,
+  other: File,
+};
 
 type View = 'inicio' | 'perfil' | 'contratos' | 'briefing' | 'calendario' | 'arquivos';
 
@@ -73,6 +120,51 @@ const navItems: { id: View; label: string }[] = [
 const ETAPAS = ['Briefing', 'Criação', 'Revisão', 'Entrega', 'Concluído'];
 
 const SERVICO_REDES_SOCIAIS = 'gerenciamento de redes sociais';
+
+function ArquivoCard({ link }: { link: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const info = parseArquivoLink(link);
+  const Icon = ARQUIVO_ICON[info.kind];
+
+  return (
+    <div className="overflow-hidden rounded-xl border" style={{ borderColor: '#e3e7f7' }}>
+      <div className="flex flex-wrap items-center gap-2 p-4">
+        <Icon size={18} className="shrink-0 text-[#E97933]" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-[#1A1A1A]">{info.label}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {info.previewUrl && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition hover:border-[#E97933]/40"
+              style={{ borderColor: '#e3e7f7', color: '#1A1A1A' }}
+            >
+              <ChevronDown size={13} className={cn('transition-transform', expanded && 'rotate-180')} />
+              {expanded ? 'Ocultar' : 'Visualizar'}
+            </button>
+          )}
+          <a
+            href={info.openUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition hover:border-[#E97933]/40"
+            style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+          >
+            <ExternalLink size={13} /> Abrir
+          </a>
+        </div>
+      </div>
+
+      {expanded && info.previewUrl && (
+        <div className="border-t" style={{ borderColor: '#e3e7f7' }}>
+          <iframe src={info.previewUrl} title={info.label} className="h-[480px] w-full" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AreaCliente() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -661,22 +753,13 @@ function AreaCliente() {
               <div className="rounded-2xl border p-6" style={{ borderColor: '#e3e7f7' }}>
                 <h2 className="font-black text-[#1A1A1A] mb-4">Arquivos do Projeto</h2>
                 {clienteData?.arquivos_links ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {clienteData.arquivos_links
                       .split('\n')
+                      .map((link) => link.trim())
                       .filter(Boolean)
                       .map((link, i) => (
-                        <a
-                          key={i}
-                          href={link.trim()}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 rounded-xl border p-4 text-sm font-bold transition hover:border-[#E97933]/40"
-                          style={{ borderColor: '#e3e7f7', color: '#E97933' }}
-                        >
-                          <Download size={16} />
-                          {link.trim()}
-                        </a>
+                        <ArquivoCard key={i} link={link} />
                       ))}
                   </div>
                 ) : (
