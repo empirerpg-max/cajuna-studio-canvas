@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
 
@@ -27,11 +28,40 @@ function normalizeWeekday(value: string): string {
   return (value || '').trim().toLowerCase();
 }
 
-function imageSlides(item: CalendarItem): string[] {
-  const slides: string[] = [];
+type Slide = { type: 'image'; url: string } | { type: 'text'; content: string };
+
+const DRIVE_ID_PATTERNS = [
+  /\/file\/d\/([a-zA-Z0-9_-]{10,})/,
+  /[?&]id=([a-zA-Z0-9_-]{10,})/,
+  /\/d\/([a-zA-Z0-9_-]{10,})/,
+];
+
+function driveFileId(url: string): string | null {
+  for (const pattern of DRIVE_ID_PATTERNS) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function isImageLink(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function toDriveImageUrl(value: string, width = 900): string {
+  const fileId = driveFileId(value);
+  return fileId ? `https://lh3.googleusercontent.com/d/${fileId}=w${width}` : value;
+}
+
+function imageSlides(item: CalendarItem): Slide[] {
+  const slides: Slide[] = [];
   for (let i = 1; i <= 10; i++) {
-    const text = (item[`Imagem ${i}`] || '').trim();
-    if (text) slides.push(text);
+    const raw = (item[`Imagem ${i}`] || '').trim();
+    if (!raw) continue;
+    slides.push(isImageLink(raw) ? { type: 'image', url: toDriveImageUrl(raw) } : { type: 'text', content: raw });
+  }
+  if (slides.length === 0) {
+    slides.push({ type: 'text', content: item['Título'] || '' });
   }
   return slides;
 }
@@ -153,7 +183,7 @@ export function ContentCalendar({
                               <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
                             </div>
                           )}
-                          <p className="text-[11px] font-bold leading-snug text-[#1A1A1A] line-clamp-3">
+                          <p className="text-[11px] font-bold leading-snug text-[#1A1A1A] break-words">
                             {item['Título']}
                           </p>
                           {item['Funil'] && item['Nome do funil'] && (
@@ -203,6 +233,63 @@ export function ContentCalendar({
   );
 }
 
+function EditorialTextSlide({
+  text,
+  tipo,
+  tipoStyle,
+  dia,
+  slideIndex,
+  totalSlides,
+}: {
+  text: string;
+  tipo: string;
+  tipoStyle?: { dot: string; label: string };
+  dia?: string;
+  slideIndex: number;
+  totalSlides: number;
+}) {
+  const accent = tipoStyle?.dot || '#E97933';
+  const sizeClass =
+    text.length > 140
+      ? 'text-lg sm:text-xl'
+      : text.length > 80
+        ? 'text-xl sm:text-2xl'
+        : text.length > 40
+          ? 'text-2xl sm:text-3xl'
+          : 'text-3xl sm:text-4xl';
+
+  return (
+    <div className="retro-noise relative flex h-full w-full flex-col justify-between overflow-hidden bg-[#141414] p-6">
+      <div
+        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-2xl"
+        style={{ backgroundColor: accent }}
+      />
+
+      <div className="relative flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
+          {dia ? `Dia ${dia}` : 'Post'}
+          {totalSlides > 1 ? ` · ${slideIndex + 1}/${totalSlides}` : ''}
+        </span>
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
+      </div>
+
+      <p className={cn('relative font-black uppercase leading-[1.1] text-white whitespace-pre-line', sizeClass)}>
+        {text}
+      </p>
+
+      <div className="relative flex items-center justify-between">
+        <span
+          className="rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white"
+          style={{ borderColor: accent }}
+        >
+          {tipo || 'Post'}
+        </span>
+        <div className="h-1 w-14 rounded-full" style={{ backgroundColor: accent }} />
+      </div>
+    </div>
+  );
+}
+
 function PostPreviewModal({
   item,
   clienteNome,
@@ -226,6 +313,10 @@ function PostPreviewModal({
   const direcao = (item['Direção criativa'] || '').trim();
   const liked = (item['Aprovado?'] || '').trim().toLowerCase() === 'sim';
   const savedComment = (item['Comentário'] || '').trim();
+  const tipo = (item['Tipo'] || '').trim();
+  const tipoStyle = TIPO_STYLE[tipo];
+  const currentSlide = slides[Math.min(slideIndex, slides.length - 1)];
+  const isImageSlide = currentSlide?.type === 'image';
 
   function toggleLike() {
     onLike?.(item, !liked);
@@ -276,8 +367,11 @@ function PostPreviewModal({
 
         {/* Slides */}
         <div
-          className="relative aspect-square w-full overflow-hidden select-none"
-          style={{ backgroundColor: '#2D5F8A' }}
+          className={cn(
+            'relative w-full overflow-hidden select-none',
+            isImageSlide ? 'aspect-[9/16]' : 'aspect-[4/5]'
+          )}
+          style={{ backgroundColor: '#141414' }}
           onDoubleClick={handleDoubleClick}
         >
           <AnimatePresence>
@@ -300,11 +394,25 @@ function PostPreviewModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="retro-noise flex h-full w-full items-center justify-center p-8 text-center"
+              className="h-full w-full"
             >
-              <p className="text-lg font-black leading-snug text-white whitespace-pre-line">
-                {slides[slideIndex] || item['Título']}
-              </p>
+              {currentSlide?.type === 'image' ? (
+                <img
+                  src={currentSlide.url}
+                  alt={item['Título'] || 'Post'}
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              ) : (
+                <EditorialTextSlide
+                  text={currentSlide?.content || item['Título'] || ''}
+                  tipo={tipo}
+                  tipoStyle={tipoStyle}
+                  dia={item['Dia']}
+                  slideIndex={slideIndex}
+                  totalSlides={slides.length}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
 
