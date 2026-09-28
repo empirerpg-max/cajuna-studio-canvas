@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
@@ -175,6 +175,7 @@ export function ContentCalendar({
                   const temConteudo = (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim';
                   const tipo = (item['Tipo'] || '').trim();
                   const tipoStyle = TIPO_STYLE[tipo];
+                  const temImagem = imageSlides(item).some((s) => s.type === 'image');
 
                   return (
                     <button
@@ -193,6 +194,12 @@ export function ContentCalendar({
                               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
                               <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
                             </div>
+                          )}
+                          {!temImagem && (
+                            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#1A1A1A] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
+                              <FileText size={8} />
+                              Conteúdo escrito
+                            </span>
                           )}
                           <p className="text-[11px] font-bold leading-snug text-[#1A1A1A] break-words">
                             {item['Título']}
@@ -371,7 +378,13 @@ function FeedThumbnail({ item, onClick }: { item: CalendarItem; onClick: () => v
         <img src={first.url} alt={item['Título'] || 'Post'} className="h-full w-full object-cover" draggable={false} />
       ) : (
         <div className="flex h-full w-full flex-col justify-between p-2.5">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tipoStyle?.dot || '#E97933' }} />
+          <span
+            className="inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-[#141414]"
+            style={{ backgroundColor: tipoStyle?.dot || '#E97933' }}
+          >
+            <FileText size={8} />
+            Escrito
+          </span>
           <p className="line-clamp-4 text-[10px] font-black uppercase leading-tight text-white">
             {first?.type === 'text' ? first.content : item['Título']}
           </p>
@@ -413,12 +426,22 @@ function EditorialTextSlide({
         style={{ backgroundColor: accent }}
       />
 
-      <div className="relative flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
-          {dia ? `Dia ${dia}` : 'Post'}
-          {totalSlides > 1 ? ` · ${slideIndex + 1}/${totalSlides}` : ''}
+      <div className="relative space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
+            {dia ? `Dia ${dia}` : 'Post'}
+            {totalSlides > 1 ? ` · ${slideIndex + 1}/${totalSlides}` : ''}
+          </span>
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
+        </div>
+
+        <span
+          className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-[#141414]"
+          style={{ backgroundColor: accent }}
+        >
+          <FileText size={11} />
+          Conteúdo escrito · imagem em produção
         </span>
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
       </div>
 
       <p className={cn('relative font-black uppercase leading-[1.1] text-white whitespace-pre-line', sizeClass)}>
