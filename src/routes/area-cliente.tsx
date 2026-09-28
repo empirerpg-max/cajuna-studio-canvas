@@ -128,6 +128,46 @@ function AreaCliente() {
     }
   }
 
+  async function likeCalendarItem(item: CalendarItem, aprovado: boolean) {
+    setCalendarItems((prev) =>
+      prev.map((it) => (it._row === item._row ? { ...it, 'Aprovado?': aprovado ? 'Sim' : '' } : it))
+    );
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'likeCalendario',
+          codigo_contrato: clienteUser?.codigo_contrato,
+          row: item._row,
+          aprovado,
+        }),
+      });
+    } catch {
+      // silencioso
+    }
+  }
+
+  async function commentCalendarItem(item: CalendarItem, comentario: string) {
+    setCalendarItems((prev) =>
+      prev.map((it) => (it._row === item._row ? { ...it, Comentário: comentario } : it))
+    );
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'comentarCalendario',
+          codigo_contrato: clienteUser?.codigo_contrato,
+          row: item._row,
+          comentario,
+        }),
+      });
+    } catch {
+      // silencioso
+    }
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     const cc = codigoContrato.trim();
@@ -611,6 +651,8 @@ function AreaCliente() {
                 loading={calendarLoading}
                 error={calendarError}
                 clienteNome={clienteData?.empresa || clienteUser?.nome || 'Cajuna Studio'}
+                onLike={likeCalendarItem}
+                onComment={commentCalendarItem}
               />
             )}
 
