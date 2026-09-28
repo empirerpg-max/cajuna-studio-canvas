@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { SiteShell } from '@/components/SiteShell';
 import { BriefingWizard, type ClienteUser } from '@/components/BriefingWizard';
 import { BriefingRedesSociaisWizard } from '@/components/BriefingRedesSociaisWizard';
+import { ContentCalendar, type CalendarItem } from '@/components/ContentCalendar';
 import { formatDateBR, formatDateTimeBR } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import {
@@ -30,7 +31,7 @@ export const Route = createFileRoute('/area-cliente')({
 const API_URL =
   'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
 
-type View = 'inicio' | 'perfil' | 'contratos' | 'briefing' | 'arquivos';
+type View = 'inicio' | 'perfil' | 'contratos' | 'briefing' | 'calendario' | 'arquivos';
 
 interface ClienteData {
   nome?: string;
@@ -65,6 +66,7 @@ const navItems: { id: View; label: string }[] = [
   { id: 'perfil', label: 'Perfil' },
   { id: 'contratos', label: 'Contratos' },
   { id: 'briefing', label: 'Briefing' },
+  { id: 'calendario', label: 'Calendário' },
   { id: 'arquivos', label: 'Arquivos' },
 ];
 
@@ -85,6 +87,10 @@ function AreaCliente() {
   const [loadingData, setLoadingData] = useState(false);
   const [briefingStatus, setBriefingStatus] = useState('pendente');
   const [briefingsRS, setBriefingsRS] = useState<BriefingRS[]>([]);
+  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState('');
+  const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const isRedesSociais =
     (clienteData?.servico ?? '').trim().toLowerCase() === SERVICO_REDES_SOCIAIS;
@@ -98,6 +104,27 @@ function AreaCliente() {
       if (json.ok) setBriefingsRS(json.briefings ?? []);
     } catch {
       // silently fail
+    }
+  }
+
+  async function fetchCalendario(codigoContrato: string) {
+    setCalendarLoading(true);
+    setCalendarError('');
+    try {
+      const res = await fetch(
+        `${API_URL}?action=getCalendario&codigo=${encodeURIComponent(codigoContrato)}`
+      );
+      const json = await res.json();
+      if (json.ok) {
+        setCalendarItems(json.items ?? []);
+      } else {
+        setCalendarError(json.error || 'Nenhum calendário disponível ainda.');
+      }
+    } catch {
+      setCalendarError('Erro de conexão ao carregar o calendário.');
+    } finally {
+      setCalendarLoading(false);
+      setCalendarLoaded(true);
     }
   }
 
@@ -155,6 +182,12 @@ function AreaCliente() {
     }
   }, [isRedesSociais, clienteUser?.codigo_contrato]);
 
+  useEffect(() => {
+    if (view === 'calendario' && !calendarLoaded && clienteUser?.codigo_contrato) {
+      void fetchCalendario(clienteUser.codigo_contrato);
+    }
+  }, [view, calendarLoaded, clienteUser?.codigo_contrato]);
+
   function handleLogout() {
     setLoggedIn(false);
     setClienteUser(null);
@@ -164,6 +197,9 @@ function AreaCliente() {
     setView('inicio');
     setBriefingStatus('pendente');
     setBriefingsRS([]);
+    setCalendarItems([]);
+    setCalendarLoaded(false);
+    setCalendarError('');
   }
 
   if (!loggedIn) {
@@ -566,6 +602,16 @@ function AreaCliente() {
                   />
                 )}
               </>
+            )}
+
+            {/* CALENDÁRIO */}
+            {view === 'calendario' && (
+              <ContentCalendar
+                items={calendarItems}
+                loading={calendarLoading}
+                error={calendarError}
+                clienteNome={clienteData?.empresa || clienteUser?.nome || 'Cajuna Studio'}
+              />
             )}
 
             {/* ARQUIVOS */}
