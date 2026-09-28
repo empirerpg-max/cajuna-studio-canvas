@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
 
-export type CalendarItem = Record<string, string>;
+export type CalendarItem = Record<string, string> & { _row?: string };
 
 const WEEKDAYS = [
   'segunda-feira',
@@ -66,11 +66,15 @@ export function ContentCalendar({
   loading,
   error,
   clienteNome,
+  onLike,
+  onComment,
 }: {
   items: CalendarItem[];
   loading: boolean;
   error: string;
   clienteNome: string;
+  onLike?: (item: CalendarItem, aprovado: boolean) => void;
+  onComment?: (item: CalendarItem, comentario: string) => void;
 }) {
   const [openItem, setOpenItem] = useState<CalendarItem | null>(null);
 
@@ -186,7 +190,13 @@ export function ContentCalendar({
 
       <AnimatePresence>
         {openItem && (
-          <PostPreviewModal item={openItem} clienteNome={clienteNome} onClose={() => setOpenItem(null)} />
+          <PostPreviewModal
+            item={items.find((it) => it._row === openItem._row) || openItem}
+            clienteNome={clienteNome}
+            onClose={() => setOpenItem(null)}
+            onLike={onLike}
+            onComment={onComment}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -197,16 +207,42 @@ function PostPreviewModal({
   item,
   clienteNome,
   onClose,
+  onLike,
+  onComment,
 }: {
   item: CalendarItem;
   clienteNome: string;
   onClose: () => void;
+  onLike?: (item: CalendarItem, aprovado: boolean) => void;
+  onComment?: (item: CalendarItem, comentario: string) => void;
 }) {
   const slides = useMemo(() => imageSlides(item), [item]);
   const [slideIndex, setSlideIndex] = useState(0);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const [commentDraft, setCommentDraft] = useState(item['Comentário'] || '');
+  const [showCommentBox, setShowCommentBox] = useState(false);
 
   const roteiro = (item['Roteiro'] || '').trim();
   const direcao = (item['Direção criativa'] || '').trim();
+  const liked = (item['Aprovado?'] || '').trim().toLowerCase() === 'sim';
+  const savedComment = (item['Comentário'] || '').trim();
+
+  function toggleLike() {
+    onLike?.(item, !liked);
+  }
+
+  function handleDoubleClick() {
+    if (!liked) {
+      onLike?.(item, true);
+      setShowHeartBurst(true);
+      window.setTimeout(() => setShowHeartBurst(false), 700);
+    }
+  }
+
+  function submitComment() {
+    onComment?.(item, commentDraft.trim());
+    setShowCommentBox(false);
+  }
 
   return (
     <motion.div
@@ -239,7 +275,24 @@ function PostPreviewModal({
         </div>
 
         {/* Slides */}
-        <div className="relative aspect-square w-full overflow-hidden" style={{ backgroundColor: '#2D5F8A' }}>
+        <div
+          className="relative aspect-square w-full overflow-hidden select-none"
+          style={{ backgroundColor: '#2D5F8A' }}
+          onDoubleClick={handleDoubleClick}
+        >
+          <AnimatePresence>
+            {showHeartBurst && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1.15 }}
+                exit={{ opacity: 0, scale: 1.4 }}
+                transition={{ duration: 0.4 }}
+                className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+              >
+                <Heart size={90} className="text-white drop-shadow-lg" fill="white" />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <AnimatePresence mode="wait">
             <motion.div
               key={slideIndex}
@@ -284,23 +337,78 @@ function PostPreviewModal({
           )}
         </div>
 
-        {/* Ações estilo Instagram (decorativas) */}
+        {/* Ações estilo Instagram */}
         <div className="flex items-center gap-4 px-4 pt-3 text-[#1A1A1A]">
-          <Heart size={22} />
-          <MessageCircle size={22} />
+          <button type="button" onClick={toggleLike} aria-label={liked ? 'Remover aprovação' : 'Aprovar'}>
+            <Heart
+              size={22}
+              className={liked ? 'text-[#E97933] transition' : 'transition hover:text-[#1A1A1A]/60'}
+              fill={liked ? '#E97933' : 'none'}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCommentBox((v) => !v)}
+            aria-label="Comentar"
+          >
+            <MessageCircle size={22} />
+          </button>
           <Send size={22} />
           <Bookmark size={22} className="ml-auto" />
         </div>
 
+        {liked && (
+          <p className="px-4 pt-1.5 text-xs font-bold text-[#E97933]">Aprovado por {clienteNome}</p>
+        )}
+
         {/* Legenda */}
         {item['Legenda'] && (
-          <div className="px-4 pb-4 pt-2">
+          <div className="px-4 pb-2 pt-2">
             <p className="text-sm text-[#1A1A1A]">
               <span className="font-black">{clienteNome}</span>{' '}
               <span className="whitespace-pre-line">{item['Legenda']}</span>
             </p>
           </div>
         )}
+
+        {/* Comentário */}
+        <div className="px-4 pb-4">
+          {savedComment && !showCommentBox && (
+            <div className="mb-2 rounded-xl p-2.5 text-sm" style={{ backgroundColor: '#F0EAE3' }}>
+              <span className="font-black text-[#1A1A1A]">{clienteNome}</span>{' '}
+              <span className="whitespace-pre-line text-[#1A1A1A]/80">{savedComment}</span>
+            </div>
+          )}
+          {showCommentBox ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                placeholder="Adicione um comentário..."
+                className="flex-1 rounded-full border px-3.5 py-2 text-sm outline-none focus:border-[#E97933]"
+                style={{ borderColor: '#e3e7f7' }}
+              />
+              <button
+                type="button"
+                onClick={submitComment}
+                className="text-sm font-black text-[#E97933] disabled:opacity-40"
+                disabled={!commentDraft.trim()}
+              >
+                Publicar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCommentBox(true)}
+              className="text-sm font-medium text-[#1A1A1A]/40"
+            >
+              {savedComment ? 'Editar comentário...' : 'Adicionar um comentário...'}
+            </button>
+          )}
+        </div>
 
         {/* Detalhes de produção */}
         {(roteiro || direcao) && (
