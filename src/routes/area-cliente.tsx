@@ -16,6 +16,7 @@ import {
   Download,
   FileText,
   ExternalLink,
+  X,
 } from 'lucide-react';
 
 export const Route = createFileRoute('/area-cliente')({
@@ -33,6 +34,8 @@ const API_URL =
 
 interface ArquivoInfo {
   title: string;
+  previewUrl: string;
+  downloadUrl: string;
   openUrl: string;
 }
 
@@ -45,13 +48,26 @@ function parseArquivoLink(raw: string): ArquivoInfo {
   const docMatch = url.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
   const sheetMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   const slideMatch = url.match(/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+  const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
 
-  let openUrl = url;
-  if (docMatch) openUrl = `https://docs.google.com/document/d/${docMatch[1]}/export?format=pdf`;
-  else if (sheetMatch) openUrl = `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/export?format=pdf`;
-  else if (slideMatch) openUrl = `https://docs.google.com/presentation/d/${slideMatch[1]}/export/pdf`;
+  let previewUrl = url;
+  let downloadUrl = url;
 
-  return { title: title || 'Arquivo', openUrl };
+  if (docMatch) {
+    previewUrl = `https://docs.google.com/document/d/${docMatch[1]}/preview`;
+    downloadUrl = `https://docs.google.com/document/d/${docMatch[1]}/export?format=pdf`;
+  } else if (sheetMatch) {
+    previewUrl = `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/preview`;
+    downloadUrl = `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/export?format=pdf`;
+  } else if (slideMatch) {
+    previewUrl = `https://docs.google.com/presentation/d/${slideMatch[1]}/embed`;
+    downloadUrl = `https://docs.google.com/presentation/d/${slideMatch[1]}/export/pdf`;
+  } else if (driveMatch) {
+    previewUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+  }
+
+  return { title: title || 'Arquivo', previewUrl, downloadUrl, openUrl: url };
 }
 
 type View = 'inicio' | 'perfil' | 'contratos' | 'briefing' | 'calendario' | 'arquivos';
@@ -98,19 +114,69 @@ const ETAPAS = ['Briefing', 'Criação', 'Revisão', 'Entrega', 'Concluído'];
 const SERVICO_REDES_SOCIAIS = 'gerenciamento de redes sociais';
 
 function ArquivoCard({ link }: { link: string }) {
+  const [open, setOpen] = useState(false);
   const info = parseArquivoLink(link);
 
   return (
-    <a
-      href={info.openUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-3 rounded-xl border p-4 text-sm font-bold transition hover:border-[#E97933]/40"
-      style={{ borderColor: '#e3e7f7', color: '#E97933' }}
-    >
-      <Download size={16} className="shrink-0" />
-      <span className="truncate">{info.title}</span>
-    </a>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm font-bold transition hover:border-[#E97933]/40"
+        style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+      >
+        <FileText size={16} className="shrink-0" />
+        <span className="truncate">{info.title}</span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1A1A1A]/80 p-4 backdrop-blur-sm md:p-10"
+            onClick={() => setOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="mt-6 w-full max-w-2xl overflow-hidden rounded-3xl border-2 border-[#1A1A1A] bg-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: '#f0f0f0' }}>
+                <p className="truncate text-sm font-black text-[#1A1A1A]">{info.title}</p>
+                <button onClick={() => setOpen(false)} className="shrink-0 rounded-full p-1.5 hover:bg-[#F0EAE3]">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <iframe src={info.previewUrl} title={info.title} className="h-[70vh] w-full" />
+
+              <div className="flex flex-wrap items-center gap-2 border-t p-4" style={{ borderColor: '#f0f0f0' }}>
+                <a
+                  href={info.downloadUrl}
+                  download
+                  className="inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition hover:border-[#E97933]/40"
+                  style={{ borderColor: '#e3e7f7', color: '#E97933' }}
+                >
+                  <Download size={14} /> Baixar
+                </a>
+                <a
+                  href={info.openUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition hover:border-[#E97933]/40"
+                  style={{ borderColor: '#e3e7f7', color: '#1A1A1A' }}
+                >
+                  <ExternalLink size={14} /> Abrir em nova aba
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
