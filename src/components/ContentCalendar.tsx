@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, Grid3x3, Eye, ImageOff } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Download, Bookmark, Grid3x3, Eye, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
@@ -28,7 +28,7 @@ function normalizeWeekday(value: string): string {
   return (value || '').trim().toLowerCase();
 }
 
-type Slide = { type: 'image'; url: string } | { type: 'text'; content: string };
+type Slide = { type: 'image'; url: string; downloadUrl: string } | { type: 'text'; content: string };
 
 const DRIVE_ID_PATTERNS = [
   /\/file\/d\/([a-zA-Z0-9_-]{10,})/,
@@ -53,12 +53,21 @@ function toDriveImageUrl(value: string, width = 900): string {
   return fileId ? `https://lh3.googleusercontent.com/d/${fileId}=w${width}` : value;
 }
 
+function toDriveDownloadUrl(value: string): string {
+  const fileId = driveFileId(value);
+  return fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : value;
+}
+
 function imageSlides(item: CalendarItem): Slide[] {
   const slides: Slide[] = [];
   for (let i = 1; i <= 10; i++) {
     const raw = (item[`Imagem ${i}`] || '').trim();
     if (!raw) continue;
-    slides.push(isImageLink(raw) ? { type: 'image', url: toDriveImageUrl(raw) } : { type: 'text', content: raw });
+    slides.push(
+      isImageLink(raw)
+        ? { type: 'image', url: toDriveImageUrl(raw), downloadUrl: toDriveDownloadUrl(raw) }
+        : { type: 'text', content: raw }
+    );
   }
   if (slides.length === 0) {
     slides.push({ type: 'text', content: item['Título'] || '' });
@@ -602,7 +611,16 @@ function PostPreviewModal({
           >
             <MessageCircle size={22} />
           </button>
-          <Send size={22} />
+          {currentSlide?.type === 'image' && (
+            <a
+              href={currentSlide.downloadUrl}
+              download
+              aria-label="Baixar imagem em qualidade original"
+              className="transition hover:text-[#1A1A1A]/60"
+            >
+              <Download size={22} />
+            </a>
+          )}
           <Bookmark size={22} className="ml-auto" />
         </div>
 
