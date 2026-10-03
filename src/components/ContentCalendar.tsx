@@ -461,7 +461,6 @@ function PostPreviewModal({
   const tipo = (item['Tipo'] || '').trim();
   const tipoStyle = TIPO_STYLE[tipo];
   const currentSlide = slides[Math.min(slideIndex, slides.length - 1)];
-  const isImageSlide = currentSlide?.type === 'image';
 
   function toggleLike() {
     onLike?.(item, !liked);
@@ -512,10 +511,7 @@ function PostPreviewModal({
 
         {/* Slides */}
         <div
-          className={cn(
-            'relative w-full overflow-hidden select-none',
-            isImageSlide ? 'aspect-[9/16]' : 'aspect-[4/5]'
-          )}
+          className="relative aspect-[4/5] w-full overflow-hidden select-none"
           style={{ backgroundColor: '#141414' }}
           onDoubleClick={handleDoubleClick}
         >
