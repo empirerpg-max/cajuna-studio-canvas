@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Search } from 'lucide-react';
+import { Loader2, MessageSquareText, RefreshCw, Search } from 'lucide-react';
+import { montarMensagem } from '@/lib/castanha/util';
 import { cn } from '@/lib/utils';
 import type { AdminOption } from '@/lib/crm-types';
 import {
@@ -47,9 +48,15 @@ function mensagemErro(err: unknown) {
 export function FbLeadsBoard({
   admins,
   onNaoAutenticado,
+  adminNome,
+  mensagemModelo,
+  onEditarMensagem,
 }: {
   admins: AdminOption[];
   onNaoAutenticado: () => void;
+  adminNome: string;
+  mensagemModelo: string;
+  onEditarMensagem: () => void;
 }) {
   const queryClient = useQueryClient();
   const [filtros, setFiltros] = useState<FiltrosFb>(FILTROS_INICIAIS);
@@ -97,6 +104,8 @@ export function FbLeadsBoard({
     return map;
   }, [visiveis]);
   const hoje = hojeISO(now);
+  const mensagemPara = (l: FbLead) =>
+    montarMensagem(mensagemModelo, { nome: l.nome, admin: adminNome, precisa: l.oQuePrecisa, negocio: l.negocio });
   const leadDetalhe = detalhe ? leads.find((l) => l.id === detalhe.id) : undefined;
 
   function trocarLead(id: string, fn: (l: FbLead) => FbLead) {
@@ -191,6 +200,13 @@ export function FbLeadsBoard({
               {saving && <span className="ml-2 text-[#E97933]">salvando...</span>}
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          <button
+            onClick={onEditarMensagem}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-[#1A1A1A] bg-white px-4 py-2 text-sm font-black text-[#1A1A1A] transition hover:bg-[#F0EAE3]"
+          >
+            <MessageSquareText size={15} /> Mensagem do WhatsApp
+          </button>
           <button
             onClick={() => void query.refetch()}
             disabled={query.isFetching}
@@ -198,6 +214,7 @@ export function FbLeadsBoard({
           >
             <RefreshCw size={15} className={cn(query.isFetching && 'animate-spin')} /> Atualizar
           </button>
+          </div>
         </div>
 
         <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -297,6 +314,7 @@ export function FbLeadsBoard({
                       lead={lead}
                       now={now}
                       hoje={hoje}
+                      mensagem={mensagemPara(lead)}
                       semContrato={lead.etapa === 'Ganho' && !!dados.data && contratosDoCard(dados.data, lead.id).length === 0}
                       onOpen={(l) => setDetalhe({ id: l.id })}
                     />
@@ -320,6 +338,7 @@ export function FbLeadsBoard({
           admins={admins}
           etapaInicial={detalhe?.etapaInicial}
           saving={saving}
+          mensagem={mensagemPara(leadDetalhe)}
           onSave={(campos) => void pedirSalvar(leadDetalhe, campos)}
           onClose={() => setDetalhe(null)}
           onRegistrarContrato={

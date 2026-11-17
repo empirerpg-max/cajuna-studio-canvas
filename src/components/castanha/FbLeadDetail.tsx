@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Loader2, MessageCircle, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
+import { BotaoWhatsapp } from './BotaoWhatsapp';
 import type { AdminOption } from '@/lib/crm-types';
 import {
   ETAPAS_FB,
@@ -58,6 +59,7 @@ export function FbLeadDetail({
   onSave,
   onClose,
   onRegistrarContrato,
+  mensagem,
 }: {
   lead: FbLead;
   admins: AdminOption[];
@@ -68,6 +70,7 @@ export function FbLeadDetail({
   onClose: () => void;
   /** Quando o lead está em Ganho sem contrato. */
   onRegistrarContrato?: () => void;
+  mensagem?: string;
 }) {
   const [form, setForm] = useState({
     etapa: etapaInicial ?? lead.etapa,
@@ -125,14 +128,7 @@ export function FbLeadDetail({
         </div>
 
         {wa && (
-          <a
-            href={wa}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-3 font-black text-white transition hover:bg-[#1ebe5b]"
-          >
-            <MessageCircle size={18} /> Chamar no WhatsApp · {lead.whatsapp}
-          </a>
+          <BotaoWhatsapp numero={lead.whatsapp} mensagem={mensagem} tamanho="grande" rotulo={`Chamar no WhatsApp · ${lead.whatsapp}`} className="mb-4" />
         )}
 
         {onRegistrarContrato && (

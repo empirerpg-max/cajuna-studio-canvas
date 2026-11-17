@@ -19,7 +19,9 @@ import { ContratoSaiModal } from '@/components/castanha/ContratoSaiModal';
 import { contratoAtivoDoCard, useDados, useRecarregarDados } from '@/components/castanha/useDados';
 import { cancelarContrato, registrarGanho, registrarMovimento } from '@/lib/castanha/dados.functions';
 import type { Contrato } from '@/lib/castanha/negocio';
-import { parseCentavos } from '@/lib/castanha/util';
+import { montarMensagem, parseCentavos } from '@/lib/castanha/util';
+import { MensagemWhatsappModal } from '@/components/castanha/MensagemWhatsappModal';
+import { useMensagens } from '@/components/castanha/useMensagens';
 
 export const Route = createFileRoute('/castanha')({
   head: () => ({
@@ -106,6 +108,8 @@ function AdminCajuna() {
     | null
   >(null);
   const [salvandoFluxo, setSalvandoFluxo] = useState(false);
+  const mensagens = useMensagens(loggedIn);
+  const [editandoMensagem, setEditandoMensagem] = useState(false);
 
   const fbResumo = useMemo(
     () => (fbQuery.data ? resumoFb(fbQuery.data.leads, Date.now()) : null),
@@ -389,7 +393,13 @@ function AdminCajuna() {
         {activeTab === 'Visão Geral' ? (
           <Overview deals={deals} funis={FUNIS} fbResumo={fbResumo} />
         ) : activeTab === FB_TAB ? (
-          <FbLeadsBoard admins={admins} onNaoAutenticado={handleSessaoExpirada} />
+          <FbLeadsBoard
+            admins={admins}
+            onNaoAutenticado={handleSessaoExpirada}
+            adminNome={adminUser?.nome ?? ''}
+            mensagemModelo={mensagens.prospeccao}
+            onEditarMensagem={() => setEditandoMensagem(true)}
+          />
         ) : (
           (() => {
             const funil = FUNIS.find((f) => f.key === activeTab)!;
@@ -404,11 +414,24 @@ function AdminCajuna() {
                 saving={saving}
                 onSave={handleSaveDeal}
                 onDelete={handleDeleteDeal}
+                onEditarMensagem={() => setEditandoMensagem(true)}
+                mensagemWhatsapp={(d) =>
+                  montarMensagem(funil.key === 'Leads' ? mensagens.prospeccao : mensagens.clientes, {
+                    nome: d.cliente,
+                    admin: adminUser?.nome ?? '',
+                    precisa: d.servico,
+                    negocio: '',
+                  })
+                }
               />
             );
           })()
         )}
       </main>
+
+      {editandoMensagem && (
+        <MensagemWhatsappModal mensagens={mensagens} adminNome={adminUser?.nome ?? ''} onClose={() => setEditandoMensagem(false)} />
+      )}
 
       {fluxoDeal?.tipo === 'perdido' && (
         <MotivoPerdaModal

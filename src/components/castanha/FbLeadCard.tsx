@@ -1,10 +1,10 @@
-import { AlertTriangle, Facebook, Instagram, MessageCircle, User } from 'lucide-react';
+import { AlertTriangle, Facebook, Instagram, User } from 'lucide-react';
+import { BotaoWhatsapp } from './BotaoWhatsapp';
 import { cn } from '@/lib/utils';
 import {
   novoAtrasado,
   proximoPassoVencido,
   tempoDesde,
-  whatsappLink,
   type FbLead,
 } from '@/lib/castanha/fb-leads';
 
@@ -30,16 +30,17 @@ export function FbLeadCard({
   hoje,
   onOpen,
   semContrato = false,
+  mensagem,
 }: {
   lead: FbLead;
   now: number;
   hoje: string;
   onOpen: (lead: FbLead) => void;
   semContrato?: boolean;
+  mensagem?: string;
 }) {
   const atrasadoNovo = novoAtrasado(lead, now);
   const vencido = proximoPassoVencido(lead, hoje);
-  const wa = whatsappLink(lead.whatsapp);
 
   return (
     <div
@@ -99,19 +100,8 @@ export function FbLeadCard({
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        {wa ? (
-          <a
-            href={wa}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-black text-white transition hover:bg-[#1ebe5b]"
-          >
-            <MessageCircle size={13} /> WhatsApp
-          </a>
-        ) : (
-          <span />
-        )}
+        <BotaoWhatsapp numero={lead.whatsapp} mensagem={mensagem} />
+        <span className="flex-1" />
         {lead.responsavel && (
           <span className="inline-flex items-center gap-1 truncate text-[11px] font-bold text-[#1A1A1A]/50">
             <User size={11} /> {lead.responsavel}
