@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { plural } from '@/lib/castanha/util';
 import { parseCurrencyBRL } from '@/lib/masks';
 import type { Deal, FunilConfig } from '@/lib/crm-types';
 import { ETAPAS_FB, type ResumoFb } from '@/lib/castanha/fb-leads';
@@ -39,10 +40,13 @@ export function Overview({
   deals,
   funis,
   fbResumo = null,
+  painel,
 }: {
   deals: Deal[];
   funis: FunilConfig[];
   fbResumo?: ResumoFb | null;
+  /** Painel do mês, mostrado logo no topo. */
+  painel?: ReactNode;
 }) {
   const stats = useMemo(() => {
     const ativos = deals.filter((d) => (d.coluna || '').toLowerCase() !== 'perdido');
@@ -72,10 +76,12 @@ export function Overview({
   return (
     <div className="px-5 py-8">
       <div className="mx-auto max-w-[1100px] space-y-8">
-        <div>
-          <h2 className="text-2xl font-black text-[#1A1A1A]">Visão Geral</h2>
+        {painel}
+
+        <div className="border-t-2 border-[#1A1A1A]/10 pt-8">
+          <h2 className="text-2xl font-black text-[#1A1A1A]">Cartões nos funis</h2>
           <p className="text-sm text-[#1A1A1A]/50 font-medium">
-            Resumo financeiro de todos os funis (exclui cartões marcados como "Perdido").
+            Soma dos valores escritos nos cartões, sem contar os marcados como "Perdido".
           </p>
         </div>
 
@@ -93,7 +99,7 @@ export function Overview({
               <div key={f.funil} className="rounded-2xl border-2 border-[#1A1A1A]/10 bg-[#F0EAE3] p-4">
                 <p className="text-xs font-black uppercase text-[#1A1A1A]/50">{f.funil}</p>
                 <p className="mt-1 text-xl font-black text-[#1A1A1A]">{fmtBRL(f.total)}</p>
-                <p className="text-xs text-[#1A1A1A]/40 font-medium">{f.count} cartão{f.count === 1 ? '' : 'ões'}</p>
+                <p className="text-xs text-[#1A1A1A]/40 font-medium">{plural(f.count, 'cartão', 'cartões')}</p>
               </div>
             ))}
           </div>

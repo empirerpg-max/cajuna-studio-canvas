@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
+import { PainelMes } from '@/components/castanha/PainelMes';
 import { InstallAppButton } from '@/components/castanha/InstallAppButton';
 import { FB_LEADS_QUERY_KEY, FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
 import { useQuery } from '@tanstack/react-query';
@@ -391,7 +392,19 @@ function AdminCajuna() {
 
       <main>
         {activeTab === 'Visão Geral' ? (
-          <Overview deals={deals} funis={FUNIS} fbResumo={fbResumo} />
+          <Overview
+            deals={deals}
+            funis={FUNIS}
+            fbResumo={fbResumo}
+            painel={
+              <PainelMes
+                deals={deals}
+                leadsFb={fbQuery.data?.leads ?? []}
+                dados={dados.data}
+                carregando={dados.isLoading || fbQuery.isLoading}
+              />
+            }
+          />
         ) : activeTab === FB_TAB ? (
           <FbLeadsBoard
             admins={admins}
