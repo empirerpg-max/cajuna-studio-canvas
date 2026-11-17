@@ -85,6 +85,11 @@ export function normalizarLead(raw: unknown): FbLead {
   const lead = {} as FbLead;
   for (const campo of CAMPOS_TEXTO) lead[campo] = texto(r[campo]);
   if (!isEtapaFb(lead.etapa)) lead.etapa = 'Novo';
+  // Se a planilha converteu a data em data completa, volta para YYYY-MM-DD (fuso da Cajuna).
+  if (/^\d{4}-\d{2}-\d{2}T/.test(lead.dataProximoPasso)) {
+    const t = Date.parse(lead.dataProximoPasso);
+    lead.dataProximoPasso = Number.isNaN(t) ? '' : hojeISO(t);
+  }
   lead.teste = r.teste === true;
   lead.outras = {};
   if (r.outras && typeof r.outras === 'object') {
@@ -217,4 +222,26 @@ export function resumoFb(leads: FbLead[], now: number): ResumoFb {
 /** Data de hoje (YYYY-MM-DD) no fuso da Cajuna. */
 export function hojeISO(now: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(now);
+}
+
+const EDITAVEIS = ['etapa', 'responsavel', 'proximoPasso', 'dataProximoPasso', 'motivoPerda', 'anotacoes'] as const;
+
+/**
+ * Depois de salvar: parte do lead que está no cache (pode ter sido trocado por um
+ * refetch antigo durante o salvamento), reaplica os campos salvos e as marcas de atualização.
+ */
+export function mesclarSalvo(noCache: FbLead, salvo: FbLead, resposta: Partial<FbLead>): FbLead {
+  const r: FbLead = { ...noCache };
+  for (const c of EDITAVEIS) r[c] = salvo[c];
+  r.atualizadoEm = resposta.atualizadoEm ?? salvo.atualizadoEm;
+  r.atualizadoPor = resposta.atualizadoPor ?? salvo.atualizadoPor;
+  return r;
+}
+
+/** Compara códigos de admin ignorando maiúsculas e espaços. */
+export function codigoNaLista(codigo: string, lista: Iterable<string>): boolean {
+  const alvo = codigo.trim().toLowerCase();
+  if (!alvo) return false;
+  for (const c of lista) if (c.trim().toLowerCase() === alvo) return true;
+  return false;
 }

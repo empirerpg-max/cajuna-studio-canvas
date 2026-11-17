@@ -72,7 +72,8 @@ function configurar() {
   const cabecalho = COLUNAS_FUNIL.map(function (c) { return c[0]; });
   aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho]).setFontWeight('bold');
   aba.setFrozenRows(1);
-  aba.getRange(1, 1, aba.getMaxRows(), cabecalho.length).setNumberFormat('@');
+  // Coluna inteira como texto (inclusive linhas futuras), para a planilha não converter datas.
+  aba.getRange('A:I').setNumberFormat('@');
 
   const props = PropertiesService.getScriptProperties();
   let token = props.getProperty('API_TOKEN');
@@ -225,6 +226,7 @@ function atualizarLead(id, campos, usuario) {
       f.aba.getRange(f.linhaPorId[id], 1, 1, linha.length).setValues([linha]);
     } else {
       f.aba.appendRow(linha);
+      f.aba.getRange(f.aba.getLastRow(), 1, 1, linha.length).setNumberFormat('@');
     }
     return atual;
   } finally {

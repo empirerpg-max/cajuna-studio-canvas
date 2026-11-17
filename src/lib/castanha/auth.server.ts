@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { getCookie } from '@tanstack/react-start/server';
 import { verifySession, type SessionPayload } from './session';
+import { codigoNaLista } from './fb-leads';
 import { SESSION_COOKIE } from './config';
 import { chamarScriptGet, oldScriptUrl } from './apps-script.server';
 
@@ -28,6 +29,6 @@ export async function requireAdmin(): Promise<SessionPayload> {
   const sessao = await verifySession(getCookie(SESSION_COOKIE), process.env.CASTANHA_SESSION_SECRET ?? '');
   if (!sessao) throw new Error('NAO_AUTENTICADO');
   const codigos = await codigosAdmins();
-  if (!codigos.has(sessao.codigo)) throw new Error('NAO_AUTENTICADO');
+  if (!codigoNaLista(sessao.codigo, codigos)) throw new Error('NAO_AUTENTICADO');
   return sessao;
 }

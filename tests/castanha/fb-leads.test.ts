@@ -124,3 +124,23 @@ test('hojeISO usa o fuso de Fortaleza', () => {
   expect(hojeISO(Date.parse('2026-11-18T01:30:00Z'))).toBe('2026-11-17');
   expect(hojeISO(Date.parse('2026-11-18T04:00:00Z'))).toBe('2026-11-18');
 });
+
+import { mesclarSalvo, codigoNaLista } from '@/lib/castanha/fb-leads';
+test('mesclarSalvo reaplica a mudança mesmo se o cache foi sobrescrito por um refetch antigo', () => {
+  const antigo = lead({ etapa: 'Novo' });
+  const novo = { ...antigo, etapa: 'Em conversa' };
+  const r = mesclarSalvo(antigo, novo, { atualizadoEm: '2026-11-17T15:00:00.000Z', atualizadoPor: 'Bia' });
+  expect(r.etapa).toBe('Em conversa');
+  expect(r.atualizadoPor).toBe('Bia');
+});
+
+test('normalizarLead converte data do próximo passo vinda como data completa', () => {
+  expect(normalizarLead({ dataProximoPasso: '2026-11-20T03:00:00.000Z' }).dataProximoPasso).toBe('2026-11-20');
+  expect(normalizarLead({ dataProximoPasso: '2026-11-20' }).dataProximoPasso).toBe('2026-11-20');
+});
+
+test('codigoNaLista ignora maiúsculas e espaços', () => {
+  expect(codigoNaLista(' adm1 ', ['ADM1', 'ADM2'])).toBe(true);
+  expect(codigoNaLista('ADM3', ['ADM1'])).toBe(false);
+  expect(codigoNaLista('', [''])).toBe(false);
+});

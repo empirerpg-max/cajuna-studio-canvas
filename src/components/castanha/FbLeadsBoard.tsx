@@ -9,6 +9,7 @@ import {
   aplicarCampos,
   filtrarLeads,
   hojeISO,
+  mesclarSalvo,
   tempoDesde,
   type CamposEditaveis,
   type FbLead,
@@ -98,11 +99,7 @@ export function FbLeadsBoard({
     setSaving(true);
     try {
       const res = await atualizarLeadFb({ data: { id: lead.id, campos: enviar } });
-      trocarLead(lead.id, (l) => ({
-        ...l,
-        atualizadoEm: res.lead.atualizadoEm ?? l.atualizadoEm,
-        atualizadoPor: res.lead.atualizadoPor ?? l.atualizadoPor,
-      }));
+      trocarLead(lead.id, (l) => mesclarSalvo(l, novo, res.lead));
       setDetalhe(null);
     } catch (err) {
       trocarLead(lead.id, () => lead);
