@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
+import { InstallAppButton } from '@/components/castanha/InstallAppButton';
 import { FB_LEADS_QUERY_KEY, FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
 import { useQuery } from '@tanstack/react-query';
 import { listarLeadsFb } from '@/lib/castanha/leads.functions';
@@ -17,6 +18,15 @@ export const Route = createFileRoute('/castanha')({
     meta: [
       { title: 'Castanha — Cajuna Studio' },
       { name: 'robots', content: 'noindex, nofollow' },
+      { name: 'theme-color', content: '#E97933' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: 'Castanha' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    ],
+    links: [
+      { rel: 'manifest', href: '/castanha.webmanifest' },
+      { rel: 'apple-touch-icon', href: '/castanha-icons/apple-touch-icon.png' },
     ],
   }),
   component: AdminCajuna,
@@ -52,6 +62,12 @@ function AdminCajuna() {
   const [admins, setAdmins] = useState<AdminOption[]>([]);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/castanha-sw.js', { scope: '/castanha' }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     castanhaSession()
@@ -265,6 +281,9 @@ function AdminCajuna() {
               {loading ? 'Verificando...' : 'Entrar'}
             </button>
           </form>
+          <div className="mt-6 flex justify-center">
+            <InstallAppButton />
+          </div>
         </div>
       </div>
     );
@@ -278,12 +297,15 @@ function AdminCajuna() {
             <h1 className="text-white font-black">Castanha</h1>
             <p className="text-white/40 text-xs font-medium">Olá, {adminUser?.nome}</p>
           </div>
+          <div className="flex items-center gap-2">
+          <InstallAppButton />
           <button
             onClick={handleLogout}
             className="inline-flex items-center gap-2 rounded-full border-2 border-white/20 px-4 py-2 text-sm font-bold text-white/70 transition hover:border-[#E97933]/60 hover:text-white"
           >
             <LogOut size={15} /> Sair
           </button>
+          </div>
         </div>
       </header>
 
