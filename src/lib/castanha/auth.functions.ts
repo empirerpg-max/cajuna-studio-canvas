@@ -4,7 +4,7 @@ import { deleteCookie, getCookie, setCookie } from '@tanstack/react-start/server
 import { z } from 'zod';
 import { SESSION_MAX_AGE_S, signSession, verifySession } from './session';
 import { SESSION_COOKIE } from './config';
-import { OLD_SCRIPT_URL, chamarScript } from './apps-script.server';
+import { chamarScript, oldScriptUrl, type RespostaScript } from './apps-script.server';
 
 const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
 
@@ -13,9 +13,9 @@ export const castanhaLogin = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ ok: true; nome: string } | { ok: false; erro: string }> => {
     const secret = process.env.CASTANHA_SESSION_SECRET;
     if (!secret) return { ok: false, erro: 'Servidor sem CASTANHA_SESSION_SECRET' };
-    let json: any;
+    let json: RespostaScript;
     try {
-      json = await chamarScript(OLD_SCRIPT_URL, {
+      json = await chamarScript(oldScriptUrl(), {
         action: 'login',
         codigo_contrato: data.usuario,
         codigo_unico: data.senha,
@@ -23,7 +23,7 @@ export const castanhaLogin = createServerFn({ method: 'POST' })
     } catch {
       return { ok: false, erro: 'Erro de conexão. Tente novamente.' };
     }
-    if (!json?.ok) return { ok: false, erro: json?.error || 'Usuário ou senha incorretos.' };
+    if (!json.ok) return { ok: false, erro: json.error || 'Usuário ou senha incorretos.' };
     if (String(json.tipo).toLowerCase() !== 'admin') return { ok: false, erro: 'Acesso restrito a administradores.' };
 
     const nome = String(json.nome ?? '');

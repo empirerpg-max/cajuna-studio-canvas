@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
+import { FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
 import { FUNIS, type AdminOption, type Deal } from '@/lib/crm-types';
 import { cn } from '@/lib/utils';
 import { OLD_SCRIPT_URL } from '@/lib/castanha/config';
@@ -174,6 +175,12 @@ function AdminCajuna() {
     }
   }
 
+  const handleSessaoExpirada = useCallback(() => {
+    setLoggedIn(false);
+    setAdminUser(null);
+    setError('Sua sessão expirou. Entre de novo.');
+  }, []);
+
   function handleLogout() {
     void castanhaLogout().catch(() => {});
     setLoggedIn(false);
@@ -292,7 +299,7 @@ function AdminCajuna() {
         {activeTab === 'Visão Geral' ? (
           <Overview deals={deals} funis={FUNIS} />
         ) : activeTab === FB_TAB ? (
-          <p className="px-5 py-16 text-center font-bold text-[#1A1A1A]/50">Em construção</p>
+          <FbLeadsBoard admins={admins} onNaoAutenticado={handleSessaoExpirada} />
         ) : (
           (() => {
             const funil = FUNIS.find((f) => f.key === activeTab)!;

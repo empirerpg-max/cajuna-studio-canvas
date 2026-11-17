@@ -213,3 +213,8 @@ export function resumoFb(leads: FbLead[], now: number): ResumoFb {
   const fechados = porEtapa.Ganho + porEtapa.Perdido;
   return { novos7d, porEtapa, novosAtrasados, taxaGanho: fechados ? porEtapa.Ganho / fechados : null };
 }
+
+/** Data de hoje (YYYY-MM-DD) no fuso da Cajuna. */
+export function hojeISO(now: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(now);
+}

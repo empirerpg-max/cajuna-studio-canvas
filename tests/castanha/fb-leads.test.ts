@@ -118,3 +118,9 @@ describe('resumoFb', () => {
     expect(r.novosAtrasados).toBe(1);
   });
 });
+
+import { hojeISO } from '@/lib/castanha/fb-leads';
+test('hojeISO usa o fuso de Fortaleza', () => {
+  expect(hojeISO(Date.parse('2026-11-18T01:30:00Z'))).toBe('2026-11-17');
+  expect(hojeISO(Date.parse('2026-11-18T04:00:00Z'))).toBe('2026-11-18');
+});

@@ -2,7 +2,7 @@ import process from 'node:process';
 import { getCookie } from '@tanstack/react-start/server';
 import { verifySession, type SessionPayload } from './session';
 import { SESSION_COOKIE } from './config';
-import { OLD_SCRIPT_URL, chamarScriptGet } from './apps-script.server';
+import { chamarScriptGet, oldScriptUrl } from './apps-script.server';
 
 const CACHE_MS = 10 * 60_000;
 let cacheAdmins: { codigos: Set<string>; em: number } | null = null;
@@ -10,7 +10,7 @@ let cacheAdmins: { codigos: Set<string>; em: number } | null = null;
 async function codigosAdmins(): Promise<Set<string>> {
   if (cacheAdmins && Date.now() - cacheAdmins.em < CACHE_MS) return cacheAdmins.codigos;
   try {
-    const json = await chamarScriptGet(`${OLD_SCRIPT_URL}?action=getAdmins`);
+    const json = await chamarScriptGet(`${oldScriptUrl()}?action=getAdmins`);
     if (!json?.ok || !Array.isArray(json.admins)) throw new Error('getAdmins falhou');
     const codigos = new Set<string>(json.admins.map((a: { codigo?: unknown }) => String(a?.codigo ?? '')));
     cacheAdmins = { codigos, em: Date.now() };
