@@ -379,12 +379,14 @@ export function FbLeadsBoard({
             const f = fluxo;
             setSalvandoFluxo(true);
             try {
-              await cancelarContrato({ data: { contratoId: f.contrato.contratoId } });
+              // Primeiro muda a etapa; só cancela o contrato se a mudança deu certo.
               setFluxo(null);
-              await salvar(f.lead, f.campos);
+              if (!(await salvar(f.lead, f.campos))) return;
+              await cancelarContrato({ data: { contratoId: f.contrato.contratoId } });
               toast.success('Contrato cancelado.');
+              void recarregarDados();
             } catch (err) {
-              toast.error(`Não foi possível cancelar: ${mensagemErro(err)}`);
+              toast.error(`O card mudou, mas o contrato não foi cancelado: ${mensagemErro(err)}. Cancele na aba Clientes.`);
             } finally {
               setSalvandoFluxo(false);
             }

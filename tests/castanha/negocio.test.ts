@@ -143,3 +143,34 @@ test('contrato cancelado também zera o valor único', () => {
   expect(terminaEm(c)).toBe('');
   expect(receitaDoMes([{ ...uni, encerradoEm: '2026-12' }], '2026-11').unico).toBe(350000);
 });
+
+import { opcoesEncerramento, fluxoSaidaDeal } from '@/lib/castanha/negocio';
+describe('opcoesEncerramento', () => {
+  test('contrato futuro: padrão é o primeiro mês permitido, que está nas opções', () => {
+    const r = opcoesEncerramento(rec, '2026-11'); // dez/26 a mar/27
+    expect(r.opcoes).toEqual(['2026-12', '2027-01', '2027-02']);
+    expect(r.padrao).toBe('2026-12');
+    expect(r.opcoes).toContain(r.padrao);
+  });
+  test('contrato em andamento: padrão é o mês atual', () => {
+    expect(opcoesEncerramento(rec, '2027-01').padrao).toBe('2027-01');
+  });
+  test('no último mês não há o que encerrar', () => {
+    expect(opcoesEncerramento(rec, '2027-03').opcoes).toEqual(['2026-12', '2027-01', '2027-02']);
+    expect(opcoesEncerramento(rec, '2027-03').padrao).toBe('2027-02');
+    expect(opcoesEncerramento(contrato({ valorMensal: 100, meses: 1, inicio: '2026-12' }), '2026-11').opcoes).toEqual([]);
+  });
+});
+
+describe('fluxoSaidaDeal', () => {
+  test('Fechado com contrato para Perdido pergunta o contrato e o motivo', () =>
+    expect(fluxoSaidaDeal({ funil: 'Leads', de: 'Fechado', para: 'Perdido', temContratoAtivo: true })).toBe('contrato-e-motivo'));
+  test('Perdido sem contrato só pede motivo', () =>
+    expect(fluxoSaidaDeal({ funil: 'Leads', de: 'Negociando', para: 'Perdido', temContratoAtivo: false })).toBe('motivo'));
+  test('sair de Fechado com contrato pergunta o contrato', () =>
+    expect(fluxoSaidaDeal({ funil: 'Leads', de: 'Fechado', para: 'Negociando', temContratoAtivo: true })).toBe('contrato'));
+  test('mesma etapa ou outro funil só move', () => {
+    expect(fluxoSaidaDeal({ funil: 'Leads', de: 'Perdido', para: 'Perdido', temContratoAtivo: false })).toBe('mover');
+    expect(fluxoSaidaDeal({ funil: 'Avulsos', de: 'Briefing', para: 'Produção', temContratoAtivo: true })).toBe('mover');
+  });
+});

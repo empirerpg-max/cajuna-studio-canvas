@@ -7,7 +7,7 @@ import {
   salvarCliente,
   salvarContrato,
 } from '@/lib/castanha/dados.functions';
-import { contratoAtivo, terminaEm, type Cliente, type Contrato } from '@/lib/castanha/negocio';
+import { contratoAtivo, opcoesEncerramento, terminaEm, type Cliente, type Contrato } from '@/lib/castanha/negocio';
 import { formatBRL, mesISO, montarMensagem, nomeMes, parseCentavos, somarMeses } from '@/lib/castanha/util';
 import { BotaoWhatsapp } from './BotaoWhatsapp';
 import { RegistrarContratoModal, resumoContrato } from './RegistrarContratoModal';
@@ -193,16 +193,18 @@ export function ClienteDetalhe({
                         Mudar valor a partir de…
                       </Botao>
                     )}
-                    <Botao
-                      tipo="contorno"
-                      className="px-3 py-1.5 text-xs"
-                      onClick={() => {
-                        setMesAcao(somarMeses(hoje, 1));
-                        setAcao({ tipo: 'encerrar', contrato: c });
-                      }}
-                    >
-                      Encerrar antes
-                    </Botao>
+                    {opcoesEncerramento(c, hoje).opcoes.length > 0 && (
+                      <Botao
+                        tipo="contorno"
+                        className="px-3 py-1.5 text-xs"
+                        onClick={() => {
+                          setMesAcao(opcoesEncerramento(c, hoje).padrao);
+                          setAcao({ tipo: 'encerrar', contrato: c });
+                        }}
+                      >
+                        Encerrar antes
+                      </Botao>
+                    )}
                     <Botao tipo="fantasma" className="px-3 py-1.5 text-xs text-[#B3261E]" onClick={() => setAcao({ tipo: 'cancelar', contrato: c })}>
                       Cancelar
                     </Botao>
@@ -237,12 +239,7 @@ export function ClienteDetalhe({
                 {aberto?.tipo === 'encerrar' && (
                   <div className="mt-3 grid gap-3 rounded-2xl bg-[#FFF8F2] p-3 sm:grid-cols-[1fr_auto] sm:items-end">
                     <Campo rotulo="Último mês que conta" dica="O contrato para de entrar na receita depois deste mês.">
-                      <SelectMes
-                        value={somarMeses(mesAcao, -1)}
-                        onChange={(m) => setMesAcao(somarMeses(m, 1))}
-                        meses={meses.filter((m) => m >= (c.inicio || c.mesValorUnico) && m < (terminaEm(c) || '9999-99'))}
-                        rotular={nomeMes}
-                      />
+                      <SelectMes value={mesAcao} onChange={setMesAcao} meses={opcoesEncerramento(c, hoje).opcoes} rotular={nomeMes} />
                     </Campo>
                     <div className="flex gap-1.5">
                       <Botao tipo="fantasma" onClick={() => setAcao(null)}>Voltar</Botao>
@@ -250,8 +247,8 @@ export function ClienteDetalhe({
                         carregando={salvando}
                         onClick={() =>
                           void executar(
-                            () => salvarContrato({ data: { ...c, encerradoEm: mesAcao } }),
-                            `Contrato encerrado em ${nomeMes(mesAcao)}.`,
+                            () => salvarContrato({ data: { ...c, encerradoEm: somarMeses(mesAcao, 1) } }),
+                            `Contrato vale até ${nomeMes(mesAcao)}.`,
                           )
                         }
                       >

@@ -20,7 +20,7 @@ import { MotivoPerdaModal } from '@/components/castanha/MotivoPerdaModal';
 import { ContratoSaiModal } from '@/components/castanha/ContratoSaiModal';
 import { contratoAtivoDoCard, useDados, useRecarregarDados } from '@/components/castanha/useDados';
 import { cancelarContrato, registrarGanho, registrarMovimento } from '@/lib/castanha/dados.functions';
-import type { Contrato } from '@/lib/castanha/negocio';
+import { fluxoSaidaDeal, type Contrato } from '@/lib/castanha/negocio';
 import { montarMensagem, parseCentavos } from '@/lib/castanha/util';
 import { MensagemWhatsappModal } from '@/components/castanha/MensagemWhatsappModal';
 import { useMensagens } from '@/components/castanha/useMensagens';
@@ -106,8 +106,8 @@ function AdminCajuna() {
   const dados = useDados(loggedIn);
   const recarregarDados = useRecarregarDados();
   const [fluxoDeal, setFluxoDeal] = useState<
-    | { tipo: 'perdido'; deal: Deal; prev?: Deal }
-    | { tipo: 'sai'; deal: Deal; prev: Deal; contrato: Contrato }
+    | { tipo: 'perdido'; deal: Deal; prev?: Deal; cancelarContratoId?: string }
+    | { tipo: 'sai'; deal: Deal; prev: Deal; contrato: Contrato; depoisMotivo: boolean }
     | { tipo: 'ganho'; deal: Deal }
     | null
   >(null);
@@ -210,21 +210,29 @@ function AdminCajuna() {
 
   function handleSaveDeal(deal: Deal) {
     const prev = deals.find((d) => d.id === deal.id);
-    const mudou = (prev?.coluna ?? '') !== deal.coluna;
-    if ((deal.funil || 'Leads') === 'Leads' && mudou) {
-      if (deal.coluna === 'Perdido') {
-        setFluxoDeal({ tipo: 'perdido', deal, prev });
-        return;
-      }
-      if (prev?.coluna === 'Fechado') {
-        const contrato = contratoAtivoDoCard(dados.data, deal.id);
-        if (contrato) {
-          setFluxoDeal({ tipo: 'sai', deal, prev, contrato });
-          return;
-        }
-      }
+    const contrato = prev ? contratoAtivoDoCard(dados.data, deal.id) : undefined;
+    const fluxo = fluxoSaidaDeal({
+      funil: deal.funil || 'Leads',
+      de: prev?.coluna ?? '',
+      para: deal.coluna,
+      temContratoAtivo: !!contrato,
+    });
+    if (fluxo === 'motivo') return setFluxoDeal({ tipo: 'perdido', deal, prev });
+    if ((fluxo === 'contrato' || fluxo === 'contrato-e-motivo') && prev && contrato) {
+      return setFluxoDeal({ tipo: 'sai', deal, prev, contrato, depoisMotivo: fluxo === 'contrato-e-motivo' });
     }
     moverDeal(deal, prev);
+  }
+
+  /** Cancela o contrato depois que o card já mudou de etapa. */
+  async function cancelarContratoDepois(contratoId: string) {
+    try {
+      await cancelarContrato({ data: { contratoId } });
+      toast.success('Contrato cancelado.');
+      void recarregarDados();
+    } catch (err) {
+      toast.error(`O card mudou, mas o contrato não foi cancelado: ${err instanceof Error ? err.message : err}. Cancele na aba Clientes.`);
+    }
   }
 
   async function handleDeleteDeal(id: string) {
@@ -466,6 +474,7 @@ function AdminCajuna() {
             const f = fluxoDeal;
             setFluxoDeal(null);
             moverDeal(f.deal, f.prev, motivo);
+            if (f.cancelarContratoId) void cancelarContratoDepois(f.cancelarContratoId);
           }}
         />
       )}
@@ -478,22 +487,18 @@ function AdminCajuna() {
           onVoltar={() => setFluxoDeal(null)}
           onManter={() => {
             const f = fluxoDeal;
+            if (f.depoisMotivo) return setFluxoDeal({ tipo: 'perdido', deal: f.deal, prev: f.prev });
             setFluxoDeal(null);
             moverDeal(f.deal, f.prev);
           }}
-          onCancelarContrato={async () => {
+          onCancelarContrato={() => {
             const f = fluxoDeal;
-            setSalvandoFluxo(true);
-            try {
-              await cancelarContrato({ data: { contratoId: f.contrato.contratoId } });
-              setFluxoDeal(null);
-              moverDeal(f.deal, f.prev);
-              toast.success('Contrato cancelado.');
-            } catch (err) {
-              toast.error(`Não foi possível cancelar: ${err instanceof Error ? err.message : err}`);
-            } finally {
-              setSalvandoFluxo(false);
+            if (f.depoisMotivo) {
+              return setFluxoDeal({ tipo: 'perdido', deal: f.deal, prev: f.prev, cancelarContratoId: f.contrato.contratoId });
             }
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev);
+            void cancelarContratoDepois(f.contrato.contratoId);
           }}
         />
       )}

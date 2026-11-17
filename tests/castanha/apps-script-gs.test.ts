@@ -64,6 +64,16 @@ describe('script do Castanha', () => {
     expect(cs[1]).toMatchObject({ inicio: '2027-02', meses: 2, valorMensal: 150000 });
   });
 
+  test('mudarValorContrato mantém o valor único que vem depois do reajuste', () => {
+    const { chamar } = criarAmbiente();
+    chamar({ action: 'registrarGanho', cliente, contrato: { ...contrato, meses: 8, valorUnico: 300000, mesValorUnico: '2027-06' }, movimento: null });
+    const id = chamar({ action: 'dados' }).contratos[0].contratoId;
+    chamar({ action: 'mudarValorContrato', contratoId: id, aPartirDe: '2027-02', valorMensal: 150000 });
+    const cs = chamar({ action: 'dados' }).contratos;
+    const unicos = cs.filter((c: { valorUnico: number; mesValorUnico: string; encerradoEm: string }) => c.valorUnico === 300000 && c.mesValorUnico === '2027-06' && !(c.encerradoEm && c.encerradoEm <= '2027-06'));
+    expect(unicos.length).toBe(1);
+  });
+
   test('mudarValorContrato no início é recusado', () => {
     const { chamar } = criarAmbiente();
     chamar({ action: 'registrarGanho', cliente, contrato, movimento: null });

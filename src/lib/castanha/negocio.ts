@@ -223,3 +223,31 @@ export function resumoMes(args: {
         : new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza' }).format(maisAntigo),
   };
 }
+
+/**
+ * Meses que podem ser escolhidos como "último mês que conta" ao encerrar um contrato antes do fim
+ * (do primeiro mês com receita até o penúltimo), e o padrão (mês atual, limitado a essas opções).
+ * Encerrar = encerradoEm = mês seguinte ao escolhido.
+ */
+export function opcoesEncerramento(c: Contrato, hoje: string): { opcoes: string[]; padrao: string } {
+  const inicios = [fimRecorrente(c) ? c.inicio : '', unicoValido(c) ? c.mesValorUnico : ''].filter(Boolean).sort();
+  const fim = terminaEm(c);
+  const opcoes: string[] = [];
+  if (inicios[0] && fim) for (let m = inicios[0]; m < fim; m = somarMeses(m, 1)) opcoes.push(m);
+  if (!opcoes.length) return { opcoes, padrao: '' };
+  const padrao = hoje < opcoes[0] ? opcoes[0] : hoje > opcoes[opcoes.length - 1] ? opcoes[opcoes.length - 1] : hoje;
+  return { opcoes, padrao };
+}
+
+/** O que perguntar quando um deal do funil antigo muda de etapa. */
+export function fluxoSaidaDeal(a: {
+  funil: string;
+  de: string;
+  para: string;
+  temContratoAtivo: boolean;
+}): 'mover' | 'motivo' | 'contrato' | 'contrato-e-motivo' {
+  if (a.funil !== 'Leads' || a.de === a.para) return 'mover';
+  const saiDeFechadoComContrato = a.de === ETAPA_GANHO.Leads && a.temContratoAtivo;
+  if (a.para === ETAPA_PERDIDO) return saiDeFechadoComContrato ? 'contrato-e-motivo' : 'motivo';
+  return saiDeFechadoComContrato ? 'contrato' : 'mover';
+}

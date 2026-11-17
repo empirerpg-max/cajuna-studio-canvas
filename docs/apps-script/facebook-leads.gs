@@ -495,6 +495,15 @@ function mudarValorContrato(corpo, usuario) {
   if (aPartirDe <= c.inicio) throw new Error('Para mudar desde o primeiro mês, use Editar.');
   const restante = diffMeses(aPartirDe, fim);
   if (restante <= 0) throw new Error('O contrato já terminou nesse mês.');
+  // Valor único marcado para depois do reajuste vai para o contrato novo (senão seria perdido).
+  let unicoNovo = 0;
+  let mesUnicoNovo = '';
+  if (c.valorUnico > 0 && mesValido(c.mesValorUnico) && c.mesValorUnico >= aPartirDe) {
+    unicoNovo = c.valorUnico;
+    mesUnicoNovo = c.mesValorUnico;
+    c.valorUnico = 0;
+    c.mesValorUnico = '';
+  }
   c.encerradoEm = aPartirDe;
   gravarRegistro(ABA_CONTRATOS, COLUNAS_CONTRATOS, c);
   const novo = gravarRegistro(ABA_CONTRATOS, COLUNAS_CONTRATOS, {
@@ -504,8 +513,8 @@ function mudarValorContrato(corpo, usuario) {
     valorMensal: valor,
     meses: restante,
     inicio: aPartirDe,
-    valorUnico: 0,
-    mesValorUnico: '',
+    valorUnico: unicoNovo,
+    mesValorUnico: mesUnicoNovo,
     encerradoEm: '',
     criadoEm: agora(),
     criadoPor: usuario,
