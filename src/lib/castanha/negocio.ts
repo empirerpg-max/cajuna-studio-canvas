@@ -85,8 +85,14 @@ export function recorrenteNoMes(c: Contrato, mes: string): number {
   return fim && mes >= c.inicio && mes < fim ? c.valorMensal : 0;
 }
 
+/** Valor único conta se existir e não foi encerrado até o mês dele. */
+function unicoValido(c: Contrato): boolean {
+  if (!(c.valorUnico > 0) || !MES_RE.test(c.mesValorUnico)) return false;
+  return !(MES_RE.test(c.encerradoEm) && c.encerradoEm <= c.mesValorUnico);
+}
+
 function unicoNoMes(c: Contrato, mes: string): number {
-  return c.valorUnico > 0 && c.mesValorUnico === mes ? c.valorUnico : 0;
+  return unicoValido(c) && c.mesValorUnico === mes ? c.valorUnico : 0;
 }
 
 export function receitaDoMes(cs: Contrato[], mes: string) {
@@ -109,7 +115,7 @@ export function garantidoDepois(cs: Contrato[], mes: string): number {
       const n = diffMeses(de, fim);
       if (n > 0) total += n * c.valorMensal;
     }
-    if (c.valorUnico > 0 && c.mesValorUnico > mes) total += c.valorUnico;
+    if (unicoValido(c) && c.mesValorUnico > mes) total += c.valorUnico;
   }
   return total;
 }
@@ -126,7 +132,7 @@ export function serieReceita(cs: Contrato[], mesCentral: string) {
 export function terminaEm(c: Contrato): string {
   const fim = fimRecorrente(c);
   const ultimoRec = fim ? somarMeses(fim, -1) : '';
-  const ultimoUni = c.valorUnico > 0 && MES_RE.test(c.mesValorUnico) ? c.mesValorUnico : '';
+  const ultimoUni = unicoValido(c) ? c.mesValorUnico : '';
   return ultimoRec > ultimoUni ? ultimoRec : ultimoUni;
 }
 

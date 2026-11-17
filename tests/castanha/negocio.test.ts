@@ -135,3 +135,11 @@ describe('resumoMes', () => {
     expect(r.desde).toBe('17/11/2026');
   });
 });
+
+test('contrato cancelado também zera o valor único', () => {
+  const c = { ...uni, encerradoEm: '2026-11' };
+  expect(receitaDoMes([c], '2026-11').total).toBe(0);
+  expect(garantidoDepois([c], '2026-10')).toBe(0);
+  expect(terminaEm(c)).toBe('');
+  expect(receitaDoMes([{ ...uni, encerradoEm: '2026-12' }], '2026-11').unico).toBe(350000);
+});
