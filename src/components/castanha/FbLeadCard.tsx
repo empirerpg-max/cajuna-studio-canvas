@@ -29,11 +29,13 @@ export function FbLeadCard({
   now,
   hoje,
   onOpen,
+  semContrato = false,
 }: {
   lead: FbLead;
   now: number;
   hoje: string;
   onOpen: (lead: FbLead) => void;
+  semContrato?: boolean;
 }) {
   const atrasadoNovo = novoAtrasado(lead, now);
   const vencido = proximoPassoVencido(lead, hoje);
@@ -71,8 +73,13 @@ export function FbLeadCard({
       <Linha rotulo="Precisa:" valor={lead.oQuePrecisa} />
       <Linha rotulo="Fase:" valor={lead.faseDoNegocio} />
 
-      {(lead.campanha || lead.teste || vencido) && (
+      {(lead.campanha || lead.teste || vencido || semContrato) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
+          {semContrato && (
+            <span className="rounded-full border border-dashed border-[#1E8E3E] px-2 py-0.5 text-[10px] font-black uppercase text-[#1E8E3E]">
+              Sem contrato
+            </span>
+          )}
           {vencido && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF0E6] px-2 py-0.5 text-[10px] font-black uppercase text-[#B5540E]">
               <AlertTriangle size={10} /> Atrasado

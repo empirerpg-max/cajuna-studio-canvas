@@ -18,6 +18,11 @@ import {
 import { atualizarLeadFb, listarLeadsFb } from '@/lib/castanha/leads.functions';
 import { FbLeadCard } from './FbLeadCard';
 import { FbLeadDetail } from './FbLeadDetail';
+import { RegistrarContratoModal, type NovoContrato } from './RegistrarContratoModal';
+import { ContratoSaiModal } from './ContratoSaiModal';
+import { contratoAtivoDoCard, useDados, useRecarregarDados } from './useDados';
+import { cancelarContrato, registrarGanho } from '@/lib/castanha/dados.functions';
+import { contratosDoCard, type Contrato } from '@/lib/castanha/negocio';
 
 export const FB_LEADS_QUERY_KEY = ['fb-leads'] as const;
 
@@ -51,6 +56,14 @@ export function FbLeadsBoard({
   const [detalhe, setDetalhe] = useState<{ id: string; etapaInicial?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [fluxo, setFluxo] = useState<
+    | { tipo: 'ganho'; lead: FbLead }
+    | { tipo: 'sai'; lead: FbLead; campos: CamposEditaveis; contrato: Contrato }
+    | null
+  >(null);
+  const [salvandoFluxo, setSalvandoFluxo] = useState(false);
+  const dados = useDados();
+  const recarregarDados = useRecarregarDados();
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -92,7 +105,7 @@ export function FbLeadsBoard({
     );
   }
 
-  async function salvar(lead: FbLead, campos: CamposEditaveis) {
+  async function salvar(lead: FbLead, campos: CamposEditaveis): Promise<boolean> {
     const { lead: novo, enviar } = aplicarCampos(lead, campos);
     await queryClient.cancelQueries({ queryKey: FB_LEADS_QUERY_KEY });
     trocarLead(lead.id, () => novo);
@@ -101,13 +114,57 @@ export function FbLeadsBoard({
       const res = await atualizarLeadFb({ data: { id: lead.id, campos: enviar } });
       trocarLead(lead.id, (l) => mesclarSalvo(l, novo, res.lead));
       setDetalhe(null);
+      if (enviar.etapa !== undefined && enviar.etapa !== lead.etapa) void recarregarDados();
+      return true;
     } catch (err) {
       trocarLead(lead.id, () => lead);
       const msg = mensagemErro(err);
       if (msg.includes('NAO_AUTENTICADO')) onNaoAutenticado();
       else toast.error(`Não foi possível salvar: ${msg}`);
+      return false;
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** Salva, cuidando do contrato quando o card entra ou sai de Ganho. */
+  async function pedirSalvar(lead: FbLead, campos: CamposEditaveis) {
+    const para = campos.etapa ?? lead.etapa;
+    const contrato = lead.etapa === 'Ganho' && para !== 'Ganho' ? contratoAtivoDoCard(dados.data, lead.id) : undefined;
+    if (contrato) {
+      setDetalhe(null);
+      setFluxo({ tipo: 'sai', lead, campos, contrato });
+      return;
+    }
+    const ok = await salvar(lead, campos);
+    if (ok && para === 'Ganho' && lead.etapa !== 'Ganho') setFluxo({ tipo: 'ganho', lead: { ...lead, ...campos } });
+  }
+
+  async function registrarContratoDoLead(lead: FbLead, cliente: { nome?: string; whatsapp?: string; negocio?: string }, contrato: NovoContrato | null) {
+    setSalvandoFluxo(true);
+    try {
+      await registrarGanho({
+        data: {
+          cliente: {
+            nome: cliente.nome || lead.nome || 'Sem nome',
+            whatsapp: cliente.whatsapp ?? lead.whatsapp,
+            negocio: cliente.negocio ?? lead.negocio,
+            origem: 'Facebook Lead Ads',
+            cardId: lead.id,
+            funil: 'Facebook Lead Ads',
+            obs: '',
+          },
+          contrato: contrato ? { ...contrato, clienteId: '', obs: contrato.obs ?? '' } : null,
+          movimento: null,
+        },
+      });
+      toast.success(contrato ? 'Contrato registrado.' : 'Cliente registrado.');
+      setFluxo(null);
+      void recarregarDados();
+    } catch (err) {
+      toast.error(`Não foi possível registrar: ${mensagemErro(err)}`);
+    } finally {
+      setSalvandoFluxo(false);
     }
   }
 
@@ -115,7 +172,7 @@ export function FbLeadsBoard({
     const lead = leads.find((l) => l.id === id);
     if (!lead || lead.etapa === etapa) return;
     if (etapa === 'Perdido') setDetalhe({ id, etapaInicial: 'Perdido' });
-    else void salvar(lead, { etapa });
+    else void pedirSalvar(lead, { etapa });
   }
 
   const set = <K extends keyof FiltrosFb>(k: K, v: FiltrosFb[K]) => setFiltros((f) => ({ ...f, [k]: v }));
@@ -212,7 +269,7 @@ export function FbLeadsBoard({
             </button>
           </div>
         ) : (
-          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:gap-4 sm:px-0">
+          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:gap-4 sm:px-0">
             {ETAPAS_FB.map((etapa) => (
               <div
                 key={etapa}
@@ -235,7 +292,14 @@ export function FbLeadsBoard({
                 </div>
                 <div className="flex min-h-[60px] flex-col gap-3">
                   {porEtapa[etapa].map((lead) => (
-                    <FbLeadCard key={lead.id} lead={lead} now={now} hoje={hoje} onOpen={(l) => setDetalhe({ id: l.id })} />
+                    <FbLeadCard
+                      key={lead.id}
+                      lead={lead}
+                      now={now}
+                      hoje={hoje}
+                      semContrato={lead.etapa === 'Ganho' && !!dados.data && contratosDoCard(dados.data, lead.id).length === 0}
+                      onOpen={(l) => setDetalhe({ id: l.id })}
+                    />
                   ))}
                   {porEtapa[etapa].length === 0 && (
                     <p className="rounded-2xl border-2 border-dashed border-[#1A1A1A]/10 py-4 text-center text-xs font-bold text-[#1A1A1A]/30">
@@ -256,8 +320,56 @@ export function FbLeadsBoard({
           admins={admins}
           etapaInicial={detalhe?.etapaInicial}
           saving={saving}
-          onSave={(campos) => void salvar(leadDetalhe, campos)}
+          onSave={(campos) => void pedirSalvar(leadDetalhe, campos)}
           onClose={() => setDetalhe(null)}
+          onRegistrarContrato={
+            leadDetalhe.etapa === 'Ganho' && dados.data && contratosDoCard(dados.data, leadDetalhe.id).length === 0
+              ? () => {
+                  setDetalhe(null);
+                  setFluxo({ tipo: 'ganho', lead: leadDetalhe });
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {fluxo?.tipo === 'ganho' && (
+        <RegistrarContratoModal
+          modo="ganho"
+          clienteInicial={{ nome: fluxo.lead.nome, whatsapp: fluxo.lead.whatsapp, negocio: fluxo.lead.negocio }}
+          contratoInicial={{ servico: fluxo.lead.oQuePrecisa.startsWith('<test lead') ? '' : fluxo.lead.oQuePrecisa }}
+          contratoExistente={contratoAtivoDoCard(dados.data, fluxo.lead.id)}
+          salvando={salvandoFluxo}
+          onRegistrar={(cliente, contrato) => void registrarContratoDoLead(fluxo.lead, cliente, contrato)}
+          onAgoraNao={() => setFluxo(null)}
+        />
+      )}
+
+      {fluxo?.tipo === 'sai' && (
+        <ContratoSaiModal
+          nome={fluxo.lead.nome}
+          contrato={fluxo.contrato}
+          salvando={salvandoFluxo}
+          onVoltar={() => setFluxo(null)}
+          onManter={() => {
+            const f = fluxo;
+            setFluxo(null);
+            void salvar(f.lead, f.campos);
+          }}
+          onCancelarContrato={async () => {
+            const f = fluxo;
+            setSalvandoFluxo(true);
+            try {
+              await cancelarContrato({ data: { contratoId: f.contrato.contratoId } });
+              setFluxo(null);
+              await salvar(f.lead, f.campos);
+              toast.success('Contrato cancelado.');
+            } catch (err) {
+              toast.error(`Não foi possível cancelar: ${mensagemErro(err)}`);
+            } finally {
+              setSalvandoFluxo(false);
+            }
+          }}
         />
       )}
     </div>

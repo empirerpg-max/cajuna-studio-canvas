@@ -57,6 +57,7 @@ export function FbLeadDetail({
   saving,
   onSave,
   onClose,
+  onRegistrarContrato,
 }: {
   lead: FbLead;
   admins: AdminOption[];
@@ -65,6 +66,8 @@ export function FbLeadDetail({
   saving: boolean;
   onSave: (campos: CamposEditaveis) => void;
   onClose: () => void;
+  /** Quando o lead está em Ganho sem contrato. */
+  onRegistrarContrato?: () => void;
 }) {
   const [form, setForm] = useState({
     etapa: etapaInicial ?? lead.etapa,
@@ -130,6 +133,15 @@ export function FbLeadDetail({
           >
             <MessageCircle size={18} /> Chamar no WhatsApp · {lead.whatsapp}
           </a>
+        )}
+
+        {onRegistrarContrato && (
+          <button
+            onClick={onRegistrarContrato}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#1E8E3E] py-3 font-black text-[#1E8E3E] transition hover:bg-[#E3F4E8]"
+          >
+            Registrar contrato desta venda
+          </button>
         )}
 
         <div className="grid gap-3 md:grid-cols-2">

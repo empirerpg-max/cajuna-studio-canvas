@@ -12,6 +12,14 @@ import { FUNIS, type AdminOption, type Deal } from '@/lib/crm-types';
 import { cn } from '@/lib/utils';
 import { OLD_SCRIPT_URL } from '@/lib/castanha/config';
 import { castanhaLogin, castanhaLogout, castanhaSession } from '@/lib/castanha/auth.functions';
+import { toast } from 'sonner';
+import { RegistrarContratoModal } from '@/components/castanha/RegistrarContratoModal';
+import { MotivoPerdaModal } from '@/components/castanha/MotivoPerdaModal';
+import { ContratoSaiModal } from '@/components/castanha/ContratoSaiModal';
+import { contratoAtivoDoCard, useDados, useRecarregarDados } from '@/components/castanha/useDados';
+import { cancelarContrato, registrarGanho, registrarMovimento } from '@/lib/castanha/dados.functions';
+import type { Contrato } from '@/lib/castanha/negocio';
+import { parseCentavos } from '@/lib/castanha/util';
 
 export const Route = createFileRoute('/castanha')({
   head: () => ({
@@ -89,6 +97,16 @@ function AdminCajuna() {
     staleTime: 60_000,
     retry: 1,
   });
+  const dados = useDados(loggedIn);
+  const recarregarDados = useRecarregarDados();
+  const [fluxoDeal, setFluxoDeal] = useState<
+    | { tipo: 'perdido'; deal: Deal; prev?: Deal }
+    | { tipo: 'sai'; deal: Deal; prev: Deal; contrato: Contrato }
+    | { tipo: 'ganho'; deal: Deal }
+    | null
+  >(null);
+  const [salvandoFluxo, setSalvandoFluxo] = useState(false);
+
   const fbResumo = useMemo(
     () => (fbQuery.data ? resumoFb(fbQuery.data.leads, Date.now()) : null),
     [fbQuery.data],
@@ -161,10 +179,44 @@ function AdminCajuna() {
     }
   }
 
-  function handleSaveDeal(deal: Deal) {
+  function gravarDeal(deal: Deal) {
     const exists = deals.some((d) => d.id === deal.id);
     const next = exists ? deals.map((d) => (d.id === deal.id ? deal : d)) : [...deals, deal];
     void persistDeals(next);
+  }
+
+  /** Grava o deal e, no funil Leads, registra a mudança de etapa (e abre o contrato se fechou). */
+  function moverDeal(deal: Deal, prev: Deal | undefined, motivo = '') {
+    gravarDeal(deal);
+    const funil = deal.funil || 'Leads';
+    const de = prev?.coluna ?? '';
+    const primeiraColuna = FUNIS[0].columns[0];
+    if (funil !== 'Leads' || de === deal.coluna || (!prev && deal.coluna === primeiraColuna)) return;
+    registrarMovimento({
+      data: { cardId: deal.id, funil: 'Leads', deEtapa: de, paraEtapa: deal.coluna, motivo, valor: parseCentavos(deal.valor) ?? 0 },
+    })
+      .then(() => recarregarDados())
+      .catch((err) => toast.error(`A mudança de etapa não entrou no painel: ${err instanceof Error ? err.message : err}`));
+    if (deal.coluna === 'Fechado') setFluxoDeal({ tipo: 'ganho', deal });
+  }
+
+  function handleSaveDeal(deal: Deal) {
+    const prev = deals.find((d) => d.id === deal.id);
+    const mudou = (prev?.coluna ?? '') !== deal.coluna;
+    if ((deal.funil || 'Leads') === 'Leads' && mudou) {
+      if (deal.coluna === 'Perdido') {
+        setFluxoDeal({ tipo: 'perdido', deal, prev });
+        return;
+      }
+      if (prev?.coluna === 'Fechado') {
+        const contrato = contratoAtivoDoCard(dados.data, deal.id);
+        if (contrato) {
+          setFluxoDeal({ tipo: 'sai', deal, prev, contrato });
+          return;
+        }
+      }
+    }
+    moverDeal(deal, prev);
   }
 
   async function handleDeleteDeal(id: string) {
@@ -357,6 +409,85 @@ function AdminCajuna() {
           })()
         )}
       </main>
+
+      {fluxoDeal?.tipo === 'perdido' && (
+        <MotivoPerdaModal
+          nome={fluxoDeal.deal.cliente}
+          onCancelar={() => setFluxoDeal(null)}
+          onConfirmar={(motivo) => {
+            const f = fluxoDeal;
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev, motivo);
+          }}
+        />
+      )}
+
+      {fluxoDeal?.tipo === 'sai' && (
+        <ContratoSaiModal
+          nome={fluxoDeal.deal.cliente}
+          contrato={fluxoDeal.contrato}
+          salvando={salvandoFluxo}
+          onVoltar={() => setFluxoDeal(null)}
+          onManter={() => {
+            const f = fluxoDeal;
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev);
+          }}
+          onCancelarContrato={async () => {
+            const f = fluxoDeal;
+            setSalvandoFluxo(true);
+            try {
+              await cancelarContrato({ data: { contratoId: f.contrato.contratoId } });
+              setFluxoDeal(null);
+              moverDeal(f.deal, f.prev);
+              toast.success('Contrato cancelado.');
+            } catch (err) {
+              toast.error(`Não foi possível cancelar: ${err instanceof Error ? err.message : err}`);
+            } finally {
+              setSalvandoFluxo(false);
+            }
+          }}
+        />
+      )}
+
+      {fluxoDeal?.tipo === 'ganho' && (
+        <RegistrarContratoModal
+          modo="ganho"
+          clienteInicial={{ nome: fluxoDeal.deal.cliente, whatsapp: fluxoDeal.deal.contato, negocio: '' }}
+          contratoInicial={{ servico: fluxoDeal.deal.servico }}
+          contratoExistente={contratoAtivoDoCard(dados.data, fluxoDeal.deal.id)}
+          salvando={salvandoFluxo}
+          onAgoraNao={() => setFluxoDeal(null)}
+          onRegistrar={async (cliente, contrato) => {
+            const deal = fluxoDeal.deal;
+            setSalvandoFluxo(true);
+            try {
+              await registrarGanho({
+                data: {
+                  cliente: {
+                    nome: cliente.nome || deal.cliente,
+                    whatsapp: cliente.whatsapp ?? deal.contato,
+                    negocio: cliente.negocio ?? '',
+                    origem: 'Leads',
+                    cardId: deal.id,
+                    funil: 'Leads',
+                    obs: '',
+                  },
+                  contrato: contrato ? { ...contrato, clienteId: '', obs: contrato.obs ?? '' } : null,
+                  movimento: null,
+                },
+              });
+              toast.success(contrato ? 'Contrato registrado.' : 'Cliente registrado.');
+              setFluxoDeal(null);
+              void recarregarDados();
+            } catch (err) {
+              toast.error(`Não foi possível registrar: ${err instanceof Error ? err.message : err}`);
+            } finally {
+              setSalvandoFluxo(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
