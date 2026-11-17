@@ -171,7 +171,11 @@ function Orcamento() {
                 Autorizo a Cajuna Studio a coletar e tratar meus dados pessoais informados
                 neste formulário, exclusivamente para fins de contato e elaboração de
                 orçamento, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei
-                nº 13.709/2018).
+                nº 13.709/2018). Leia a{' '}
+                <a href="/politica-de-privacidade" target="_blank" rel="noreferrer" className="font-bold underline">
+                  Política de Privacidade
+                </a>
+                .
               </span>
             </label>
             <button

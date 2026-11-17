@@ -141,6 +141,11 @@ export function SiteShell({
           </div>
           <div className="md:text-center text-sm font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
             © {new Date().getFullYear()} Cajuna Studio. Identidade que dá frutos.
+            <div className="mt-2">
+              <Link to="/politica-de-privacidade" className="underline underline-offset-4 hover:text-white transition-colors">
+                Política de Privacidade
+              </Link>
+            </div>
           </div>
           <div className="md:justify-self-end flex items-center gap-3">
             <a
