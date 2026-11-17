@@ -161,8 +161,15 @@ bloco atual do Facebook · blocos financeiros antigos (por funil / por serviço)
 `https://wa.me/<número>?text=<mensagem>` com:
 > Oi, {primeiro nome}! Aqui é {nome do admin logado}, da Cajuna Studio 🧡 Vi que você pediu um orçamento de {o que precisa}. Posso te fazer umas perguntinhas rápidas?
 
-- Sem "o que precisa" (ou lead de teste): "...Vi que você pediu um orçamento com a gente."
+- Sem "o que precisa" (ou lead de teste), o trecho entre colchetes some (ver modelo abaixo).
 - Primeiro nome = primeira palavra do nome, com só a inicial maiúscula.
+- **Mensagem editável pela equipe** (pedido da dona do projeto): botão "Mensagem do WhatsApp" no
+  cabeçalho do funil Facebook Lead Ads abre um campo de texto com o modelo e as variáveis
+  `{nome}`, `{admin}`, `{precisa}`, `{negocio}`; trechos entre `[` `]` só aparecem se todas as
+  variáveis dentro deles tiverem valor. Prévia ao vivo com um lead de exemplo. Botão "Voltar ao
+  padrão". Guardado na aba `Config` da planilha de leads (`chave`, `valor`), igual para toda a equipe.
+  Modelo padrão:
+  `Oi, {nome}! Aqui é {admin}, da Cajuna Studio 🧡 Vi que você pediu um orçamento[ de {precisa}]. Posso te fazer umas perguntinhas rápidas?`
 - Vale no card e no detalhe do lead do Facebook. Na aba Clientes, o botão abre sem mensagem.
 - Formato de número recebido do Meta: `+5568999852899` (já funciona).
 
@@ -178,6 +185,7 @@ bloco atual do Facebook · blocos financeiros antigos (por funil / por serviço)
 - `registrarGanho({ cliente, contrato?, movimento })` (uma ação no script, sob lock, para não criar
   cliente sem movimento).
 - `registrarMovimento(movimento)` (funil antigo).
+- `lerConfig()` / `salvarConfig({ chave, valor })` (aba `Config`; hoje só `mensagem_whatsapp`).
 - `cancelarContrato(contrato_id)`, `mudarValorContrato({ contrato_id, a_partir_de, valor_mensal })`.
 - O `atualizar` do Facebook passa a gravar movimento quando a etapa muda.
 
