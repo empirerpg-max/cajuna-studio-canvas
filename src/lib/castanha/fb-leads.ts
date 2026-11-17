@@ -100,11 +100,12 @@ export function normalizarLead(raw: unknown): FbLead {
   return lead;
 }
 
-export function whatsappLink(raw: string): string | null {
+export function whatsappLink(raw: string, mensagem?: string): string | null {
   const digitos = (raw || '').replace(/\D/g, '');
   if (digitos.length < 10 || digitos.length > 13) return null;
   const comDdi = digitos.length <= 11 ? `55${digitos}` : digitos;
-  return `https://wa.me/${comDdi}`;
+  const texto = mensagem?.trim() ? `?text=${encodeURIComponent(mensagem.trim())}` : '';
+  return `https://wa.me/${comDdi}${texto}`;
 }
 
 function parse(iso: string): number | null {
