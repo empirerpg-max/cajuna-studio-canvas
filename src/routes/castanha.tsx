@@ -35,7 +35,8 @@ export const Route = createFileRoute('/castanha')({
 // Deals e admins continuam no Apps Script antigo (aba Usuarios / Deals).
 // O login agora passa pelo servidor do site (castanhaLogin), que grava um
 // cookie de sessão — assim o app instalado não desloga ao fechar.
-const API_URL = OLD_SCRIPT_URL;
+// VITE_CASTANHA_OLD_SCRIPT_URL só existe para testes locais com um script falso.
+const API_URL = (import.meta.env.VITE_CASTANHA_OLD_SCRIPT_URL as string | undefined) || OLD_SCRIPT_URL;
 
 const FB_TAB = 'Facebook Lead Ads';
 
