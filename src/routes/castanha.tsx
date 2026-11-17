@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
 import { PainelMes } from '@/components/castanha/PainelMes';
+import { ClientesTab } from '@/components/castanha/ClientesTab';
 import { InstallAppButton } from '@/components/castanha/InstallAppButton';
 import { FB_LEADS_QUERY_KEY, FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
 import { useQuery } from '@tanstack/react-query';
@@ -57,7 +58,9 @@ interface AdminUser {
   tipo: string;
 }
 
-const TABS = ['Visão Geral', FB_TAB, ...FUNIS.map((f) => f.key)] as const;
+const CLIENTES_TAB = 'Clientes';
+
+const TABS = ['Visão Geral', FB_TAB, CLIENTES_TAB, ...FUNIS.map((f) => f.key)] as const;
 
 function AdminCajuna() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -404,6 +407,15 @@ function AdminCajuna() {
                 carregando={dados.isLoading || fbQuery.isLoading}
               />
             }
+          />
+        ) : activeTab === CLIENTES_TAB ? (
+          <ClientesTab
+            dados={dados.data}
+            carregando={dados.isLoading}
+            erro={dados.error ? (dados.error instanceof Error ? dados.error.message : String(dados.error)) : ''}
+            adminNome={adminUser?.nome ?? ''}
+            mensagemModelo={mensagens.clientes}
+            onRecarregar={recarregarDados}
           />
         ) : activeTab === FB_TAB ? (
           <FbLeadsBoard

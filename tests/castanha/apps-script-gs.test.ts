@@ -102,6 +102,12 @@ describe('script do Castanha', () => {
     expect(chamar({ action: 'config' }).config).toEqual({ mensagem_whatsapp: 'Olá {nome}' });
   });
 
+  test('telefone com + volta sem o apóstrofo de proteção', () => {
+    const { chamar } = criarAmbiente();
+    chamar({ action: 'salvarCliente', cliente: { nome: 'Mirtes', whatsapp: '+5568999852899', negocio: '', origem: 'Manual', cardId: '', funil: '' } });
+    expect(chamar({ action: 'dados' }).clientes[0].whatsapp).toBe('+5568999852899');
+  });
+
   test('texto começando com = não vira fórmula', () => {
     const { chamar, aba } = criarAmbiente();
     chamar({ action: 'salvarCliente', cliente: { nome: '=IMPORTXML("x")', whatsapp: '', negocio: '', origem: 'Manual', cardId: '', funil: '' } });

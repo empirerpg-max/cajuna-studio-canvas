@@ -569,7 +569,9 @@ function normalizar(t) {
 function texto(v) {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return v.toISOString();
-  return String(v).trim();
+  const t = String(v).trim();
+  // Desfaz a proteção anti-fórmula de seguro() caso a planilha guarde o apóstrofo.
+  return /^'[=+\-@]/.test(t) ? t.slice(1) : t;
 }
 
 // Impede que texto digitado vire fórmula na planilha (ex.: "=IMPORTXML(...)")
