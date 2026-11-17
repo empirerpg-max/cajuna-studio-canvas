@@ -210,7 +210,7 @@ export function FbLeadDetail({
                 className={inputCls}
                 autoFocus
               >
-                <option value="">Selecione...</option>
+                <option value="">Selecione…</option>
                 {MOTIVOS_PERDA.map((m) => (
                   <option key={m} value={m}>
                     {m}

@@ -150,7 +150,7 @@ export function PipelineBoard({
             <h2 className="text-2xl font-black text-[#1A1A1A]">{funil}</h2>
             <p className="text-sm text-[#1A1A1A]/50 font-medium">
               {plural(deals.length, 'cartão', 'cartões')} neste funil
-              {saving && <span className="ml-2 text-[#E97933]">salvando...</span>}
+              {saving && <span className="ml-2 text-[#E97933]">salvando…</span>}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -298,7 +298,7 @@ export function PipelineBoard({
                       onChange={(e) => setForm((f) => ({ ...f, responsavel: e.target.value }))}
                       className="w-full rounded-xl border-2 border-[#e3e7f7] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#E97933]"
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">Selecione…</option>
                       {admins.map((a) => (
                         <option key={a.codigo} value={a.nome}>{a.nome}</option>
                       ))}

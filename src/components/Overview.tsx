@@ -88,7 +88,7 @@ export function Overview({
         {fbResumo && <FbResumoBloco r={fbResumo} />}
 
         <div className="rounded-3xl border-2 border-[#1A1A1A] bg-white p-6">
-          <p className="text-xs font-black uppercase tracking-widest text-[#E97933]">total geral ativo</p>
+          <p className="text-xs font-black uppercase tracking-widest text-[#E97933]">Total geral ativo</p>
           <p className="mt-1 text-4xl font-black text-[#1A1A1A]">{fmtBRL(stats.totalGeral)}</p>
         </div>
 

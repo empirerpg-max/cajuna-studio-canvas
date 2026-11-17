@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Loader2, MessageSquareText, RefreshCw, Search } from 'lucide-react';
-import { montarMensagem } from '@/lib/castanha/util';
+import { montarMensagem, plural } from '@/lib/castanha/util';
 import { cn } from '@/lib/utils';
 import type { AdminOption } from '@/lib/crm-types';
 import {
@@ -195,9 +195,9 @@ export function FbLeadsBoard({
           <div>
             <h2 className="text-2xl font-black text-[#1A1A1A]">Facebook Lead Ads</h2>
             <p className="text-sm font-medium text-[#1A1A1A]/50">
-              {visiveis.length} lead{visiveis.length === 1 ? '' : 's'}
+              {plural(visiveis.length, 'lead', 'leads')}
               {query.dataUpdatedAt > 0 && <> · atualizado {tempoDesde(new Date(query.dataUpdatedAt).toISOString(), now)}</>}
-              {saving && <span className="ml-2 text-[#E97933]">salvando...</span>}
+              {saving && <span className="ml-2 text-[#E97933]">salvando…</span>}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

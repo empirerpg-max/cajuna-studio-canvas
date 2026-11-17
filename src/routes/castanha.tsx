@@ -297,8 +297,8 @@ function AdminCajuna() {
       >
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
-            <div className="text-5xl mb-4">🛠️</div>
-            <h1 className="text-3xl font-black text-white">Painel Admin</h1>
+            <img src="/castanha-icons/icon-192.png" alt="" width={88} height={88} className="mx-auto mb-4 rounded-3xl border-2 border-white/10" />
+            <h1 className="text-3xl font-black text-white">Castanha</h1>
             <p className="mt-2 text-white/50">Acesso restrito à equipe Cajuna Studio.</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -339,7 +339,7 @@ function AdminCajuna() {
               className="w-full rounded-2xl py-4 font-black text-[#1A1A1A] shadow transition hover:opacity-90 disabled:opacity-60"
               style={{ background: '#E97933' }}
             >
-              {loading ? 'Verificando...' : 'Entrar'}
+              {loading ? 'Verificando…' : 'Entrar'}
             </button>
           </form>
           <div className="mt-6 flex justify-center">
