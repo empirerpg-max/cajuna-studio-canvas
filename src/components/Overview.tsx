@@ -1,12 +1,49 @@
 import { useMemo } from 'react';
 import { parseCurrencyBRL } from '@/lib/masks';
 import type { Deal, FunilConfig } from '@/lib/crm-types';
+import { ETAPAS_FB, type ResumoFb } from '@/lib/castanha/fb-leads';
 
 function fmtBRL(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function Overview({ deals, funis }: { deals: Deal[]; funis: FunilConfig[] }) {
+function FbResumoBloco({ r }: { r: ResumoFb }) {
+  const numeros = [
+    { rotulo: 'Novos (7 dias)', valor: String(r.novos7d) },
+    { rotulo: 'Novos sem contato há +1h', valor: String(r.novosAtrasados), alerta: r.novosAtrasados > 0 },
+    { rotulo: 'Taxa de ganho', valor: r.taxaGanho === null ? '—' : `${Math.round(r.taxaGanho * 100)}%` },
+  ];
+  return (
+    <div className="rounded-3xl border-2 border-[#1A1A1A] bg-white p-6">
+      <p className="text-xs font-black uppercase tracking-widest text-[#E97933]">Facebook Lead Ads</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        {numeros.map((n) => (
+          <div key={n.rotulo} className="rounded-2xl bg-[#FFF8F2] p-4">
+            <p className={`text-3xl font-black ${n.alerta ? 'text-[#D93025]' : 'text-[#1A1A1A]'}`}>{n.valor}</p>
+            <p className="text-xs font-bold text-[#1A1A1A]/50">{n.rotulo}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {ETAPAS_FB.map((e) => (
+          <span key={e} className="rounded-full bg-[#F0EAE3] px-3 py-1 text-xs font-bold text-[#1A1A1A]/70">
+            {e}: <span className="font-black text-[#1A1A1A]">{r.porEtapa[e]}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function Overview({
+  deals,
+  funis,
+  fbResumo = null,
+}: {
+  deals: Deal[];
+  funis: FunilConfig[];
+  fbResumo?: ResumoFb | null;
+}) {
   const stats = useMemo(() => {
     const ativos = deals.filter((d) => (d.coluna || '').toLowerCase() !== 'perdido');
     const totalGeral = ativos.reduce((s, d) => s + parseCurrencyBRL(d.valor), 0);
@@ -41,6 +78,8 @@ export function Overview({ deals, funis }: { deals: Deal[]; funis: FunilConfig[]
             Resumo financeiro de todos os funis (exclui cartões marcados como "Perdido").
           </p>
         </div>
+
+        {fbResumo && <FbResumoBloco r={fbResumo} />}
 
         <div className="rounded-3xl border-2 border-[#1A1A1A] bg-white p-6">
           <p className="text-xs font-black uppercase tracking-widest text-[#E97933]">total geral ativo</p>
