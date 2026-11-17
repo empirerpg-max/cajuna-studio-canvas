@@ -1,25 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, LogOut } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
 import { FUNIS, type AdminOption, type Deal } from '@/lib/crm-types';
 import { cn } from '@/lib/utils';
+import { OLD_SCRIPT_URL } from '@/lib/castanha/config';
+import { castanhaLogin, castanhaLogout, castanhaSession } from '@/lib/castanha/auth.functions';
 
-export const Route = createFileRoute('/admin-cajuna')({
+export const Route = createFileRoute('/castanha')({
   head: () => ({
     meta: [
-      { title: 'Admin — Cajuna Studio' },
+      { title: 'Castanha — Cajuna Studio' },
       { name: 'robots', content: 'noindex, nofollow' },
     ],
   }),
   component: AdminCajuna,
 });
 
-// Mesmo Apps Script da Área do Cliente (aba Usuarios / Deals). O acesso
-// admin usa a mesma ação de login (action=login), só que exige tipo === 'admin'.
-const API_URL =
-  'https://script.google.com/macros/s/AKfycbxWj5evgdS-hU7GDfwdGLHDxpvcxL47_H32V-Z7km2eSb3PWuxJVX6HPoNjPi-6GTfU/exec';
+// Deals e admins continuam no Apps Script antigo (aba Usuarios / Deals).
+// O login agora passa pelo servidor do site (castanhaLogin), que grava um
+// cookie de sessão — assim o app instalado não desloga ao fechar.
+const API_URL = OLD_SCRIPT_URL;
+
+const FB_TAB = 'Facebook Lead Ads';
 
 interface AdminUser {
   nome: string;
@@ -27,10 +31,11 @@ interface AdminUser {
   tipo: string;
 }
 
-const TABS = ['Visão Geral', ...FUNIS.map((f) => f.key)] as const;
+const TABS = ['Visão Geral', FB_TAB, ...FUNIS.map((f) => f.key)] as const;
 
 function AdminCajuna() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -43,6 +48,18 @@ function AdminCajuna() {
   const [admins, setAdmins] = useState<AdminOption[]>([]);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    castanhaSession()
+      .then((s) => {
+        if (s) {
+          setAdminUser({ nome: s.nome, codigo_contrato: s.codigo, tipo: 'admin' });
+          setLoggedIn(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingSession(false));
+  }, []);
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -142,19 +159,13 @@ function AdminCajuna() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'login', codigo_contrato: u, codigo_unico: s }),
-      });
-      const json = await res.json();
-      if (json.ok && String(json.tipo).toLowerCase() === 'admin') {
-        setAdminUser({ nome: json.nome, codigo_contrato: json.codigo_contrato, tipo: json.tipo });
+      const res = await castanhaLogin({ data: { usuario: u, senha: s } });
+      if (res.ok) {
+        setAdminUser({ nome: res.nome, codigo_contrato: u, tipo: 'admin' });
         setLoggedIn(true);
-      } else if (json.ok) {
-        setError('Acesso restrito a administradores.');
+        setSenha('');
       } else {
-        setError(json.error || 'Usuário ou senha incorretos.');
+        setError(res.erro);
       }
     } catch {
       setError('Erro de conexão. Tente novamente.');
@@ -164,10 +175,19 @@ function AdminCajuna() {
   }
 
   function handleLogout() {
+    void castanhaLogout().catch(() => {});
     setLoggedIn(false);
     setAdminUser(null);
     setUsuario('');
     setSenha('');
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1A1A1A' }}>
+        <Loader2 className="animate-spin text-[#E97933]" size={28} />
+      </div>
+    );
   }
 
   if (!loggedIn) {
@@ -233,7 +253,7 @@ function AdminCajuna() {
       <header className="border-b-2 border-[#1A1A1A]" style={{ backgroundColor: '#1A1A1A' }}>
         <div className="mx-auto max-w-[1500px] px-5 h-16 flex items-center justify-between">
           <div>
-            <h1 className="text-white font-black">Painel Admin</h1>
+            <h1 className="text-white font-black">Castanha</h1>
             <p className="text-white/40 text-xs font-medium">Olá, {adminUser?.nome}</p>
           </div>
           <button
@@ -271,6 +291,8 @@ function AdminCajuna() {
       <main>
         {activeTab === 'Visão Geral' ? (
           <Overview deals={deals} funis={FUNIS} />
+        ) : activeTab === FB_TAB ? (
+          <p className="px-5 py-16 text-center font-bold text-[#1A1A1A]/50">Em construção</p>
         ) : (
           (() => {
             const funil = FUNIS.find((f) => f.key === activeTab)!;

@@ -10,8 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminCajunaRouteImport } from './routes/admin-cajuna'
 import { Route as AreaClienteRouteImport } from './routes/area-cliente'
+import { Route as CastanhaRouteImport } from './routes/castanha'
 import { Route as OrcamentoRouteImport } from './routes/orcamento'
 import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
@@ -21,14 +21,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminCajunaRoute = AdminCajunaRouteImport.update({
-  id: '/admin-cajuna',
-  path: '/admin-cajuna',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AreaClienteRoute = AreaClienteRouteImport.update({
   id: '/area-cliente',
   path: '/area-cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CastanhaRoute = CastanhaRouteImport.update({
+  id: '/castanha',
+  path: '/castanha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrcamentoRoute = OrcamentoRouteImport.update({
@@ -49,16 +49,16 @@ const PortfolioRoute = PortfolioRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
+  '/castanha': typeof CastanhaRoute
   '/orcamento': typeof OrcamentoRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/portfolio': typeof PortfolioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
+  '/castanha': typeof CastanhaRoute
   '/orcamento': typeof OrcamentoRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/portfolio': typeof PortfolioRoute
@@ -66,8 +66,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin-cajuna': typeof AdminCajunaRoute
   '/area-cliente': typeof AreaClienteRoute
+  '/castanha': typeof CastanhaRoute
   '/orcamento': typeof OrcamentoRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/portfolio': typeof PortfolioRoute
@@ -76,24 +76,24 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin-cajuna'
     | '/area-cliente'
+    | '/castanha'
     | '/orcamento'
     | '/politica-de-privacidade'
     | '/portfolio'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin-cajuna'
     | '/area-cliente'
+    | '/castanha'
     | '/orcamento'
     | '/politica-de-privacidade'
     | '/portfolio'
   id:
     | '__root__'
     | '/'
-    | '/admin-cajuna'
     | '/area-cliente'
+    | '/castanha'
     | '/orcamento'
     | '/politica-de-privacidade'
     | '/portfolio'
@@ -101,8 +101,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminCajunaRoute: typeof AdminCajunaRoute
   AreaClienteRoute: typeof AreaClienteRoute
+  CastanhaRoute: typeof CastanhaRoute
   OrcamentoRoute: typeof OrcamentoRoute
   PoliticaDePrivacidadeRoute: typeof PoliticaDePrivacidadeRoute
   PortfolioRoute: typeof PortfolioRoute
@@ -117,18 +117,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin-cajuna': {
-      id: '/admin-cajuna'
-      path: '/admin-cajuna'
-      fullPath: '/admin-cajuna'
-      preLoaderRoute: typeof AdminCajunaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/area-cliente': {
       id: '/area-cliente'
       path: '/area-cliente'
       fullPath: '/area-cliente'
       preLoaderRoute: typeof AreaClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/castanha': {
+      id: '/castanha'
+      path: '/castanha'
+      fullPath: '/castanha'
+      preLoaderRoute: typeof CastanhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orcamento': {
@@ -157,8 +157,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminCajunaRoute: AdminCajunaRoute,
   AreaClienteRoute: AreaClienteRoute,
+  CastanhaRoute: CastanhaRoute,
   OrcamentoRoute: OrcamentoRoute,
   PoliticaDePrivacidadeRoute: PoliticaDePrivacidadeRoute,
   PortfolioRoute: PortfolioRoute,
