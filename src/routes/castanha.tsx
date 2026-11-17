@@ -1,9 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
-import { FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
+import { FB_LEADS_QUERY_KEY, FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
+import { useQuery } from '@tanstack/react-query';
+import { listarLeadsFb } from '@/lib/castanha/leads.functions';
+import { resumoFb } from '@/lib/castanha/fb-leads';
 import { FUNIS, type AdminOption, type Deal } from '@/lib/crm-types';
 import { cn } from '@/lib/utils';
 import { OLD_SCRIPT_URL } from '@/lib/castanha/config';
@@ -61,6 +64,18 @@ function AdminCajuna() {
       .catch(() => {})
       .finally(() => setCheckingSession(false));
   }, []);
+
+  const fbQuery = useQuery({
+    queryKey: FB_LEADS_QUERY_KEY,
+    queryFn: () => listarLeadsFb(),
+    enabled: loggedIn,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const fbResumo = useMemo(
+    () => (fbQuery.data ? resumoFb(fbQuery.data.leads, Date.now()) : null),
+    [fbQuery.data],
+  );
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -297,7 +312,7 @@ function AdminCajuna() {
 
       <main>
         {activeTab === 'Visão Geral' ? (
-          <Overview deals={deals} funis={FUNIS} />
+          <Overview deals={deals} funis={FUNIS} fbResumo={fbResumo} />
         ) : activeTab === FB_TAB ? (
           <FbLeadsBoard admins={admins} onNaoAutenticado={handleSessaoExpirada} />
         ) : (
