@@ -170,7 +170,16 @@ bloco atual do Facebook · blocos financeiros antigos (por funil / por serviço)
   padrão". Guardado na aba `Config` da planilha de leads (`chave`, `valor`), igual para toda a equipe.
   Modelo padrão:
   `Oi, {nome}! Aqui é {admin}, da Cajuna Studio 🧡 Vi que você pediu um orçamento[ de {precisa}]. Posso te fazer umas perguntinhas rápidas?`
-- Vale no card e no detalhe do lead do Facebook. Na aba Clientes, o botão abre sem mensagem.
+- **Em todos os funis** (pedido da dona do projeto): Facebook Lead Ads, Leads, Identidade Visual,
+  Redes Sociais, Campanhas, Avulsos — no card e no detalhe — e na aba Clientes. Funis antigos usam o
+  campo `contato` do deal como número.
+- **Dois modelos** (*decisão do Claude*: a mensagem de orçamento não serve para cliente em produção):
+  - **Prospecção** (Facebook Lead Ads e Leads): o modelo de orçamento acima. No funil Leads,
+    `{precisa}` = serviço do deal e `{negocio}` vazio.
+  - **Clientes** (funis de projeto e aba Clientes): padrão
+    `Oi, {nome}! Aqui é {admin}, da Cajuna Studio 🧡 Tudo bem por aí?` com as mesmas variáveis.
+  - Os dois editáveis no mesmo modal (abas "Prospecção" / "Clientes"); chaves `mensagem_whatsapp` e
+    `mensagem_whatsapp_clientes`. O botão "Mensagem do WhatsApp" fica no cabeçalho de todos os funis.
 - Formato de número recebido do Meta: `+5568999852899` (já funciona).
 
 ### 7.6 Textos
