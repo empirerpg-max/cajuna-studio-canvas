@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { formatCurrencyBRL, formatPhoneBR } from '@/lib/masks';
 import type { AdminOption, Deal } from '@/lib/crm-types';
-import { Plus, X, Trash2, Phone, Tag as TagIcon, Loader2 } from 'lucide-react';
+import { Plus, X, Trash2, Phone, Tag as TagIcon, Loader2, MessageSquareText } from 'lucide-react';
+import { BotaoWhatsapp } from '@/components/castanha/BotaoWhatsapp';
+import { plural } from '@/lib/castanha/util';
 
 const PRIORIDADES = ['Baixa', 'Média', 'Alta'] as const;
 
@@ -37,6 +39,8 @@ export function PipelineBoard({
   saving,
   onSave,
   onDelete,
+  mensagemWhatsapp,
+  onEditarMensagem,
 }: {
   funil: string;
   columns: readonly string[];
@@ -47,6 +51,9 @@ export function PipelineBoard({
   saving: boolean;
   onSave: (deal: Deal) => void;
   onDelete: (id: string) => void;
+  /** Texto pronto para o WhatsApp de cada card. */
+  mensagemWhatsapp?: (deal: { cliente: string; servico: string }) => string;
+  onEditarMensagem?: () => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -142,16 +149,26 @@ export function PipelineBoard({
           <div>
             <h2 className="text-2xl font-black text-[#1A1A1A]">{funil}</h2>
             <p className="text-sm text-[#1A1A1A]/50 font-medium">
-              {deals.length} cartão{deals.length === 1 ? '' : 'ões'} neste funil
-              {saving && <span className="ml-2 text-[#E97933]">salvando...</span>}
+              {plural(deals.length, 'cartão', 'cartões')} neste funil
+              {saving && <span className="ml-2 text-[#E97933]">salvando…</span>}
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          {onEditarMensagem && (
+            <button
+              onClick={onEditarMensagem}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-[#1A1A1A] bg-white px-4 py-2.5 text-sm font-black text-[#1A1A1A] transition hover:bg-[#F0EAE3]"
+            >
+              <MessageSquareText size={15} /> Mensagem do WhatsApp
+            </button>
+          )}
           <button
             onClick={() => openNewModal(columns[0])}
             className="inline-flex items-center gap-2 rounded-full border-2 border-[#1A1A1A] bg-[#E97933] px-5 py-2.5 font-black text-[#1A1A1A] transition hover:bg-[#d4692a]"
           >
             <Plus size={17} /> Novo
           </button>
+          </div>
         </div>
 
         {loading ? (
@@ -204,9 +221,12 @@ export function PipelineBoard({
                           <p className="mt-1 text-sm font-black text-[#1A1A1A]">{deal.valor}</p>
                         )}
                         {deal.contato && (
-                          <p className="mt-2 flex items-center gap-1.5 text-xs text-[#1A1A1A]/50 font-medium">
-                            <Phone size={12} /> {deal.contato}
-                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <BotaoWhatsapp numero={deal.contato} mensagem={mensagemWhatsapp?.(deal)} />
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-[#1A1A1A]/50">
+                              <Phone size={12} /> {deal.contato}
+                            </span>
+                          </div>
                         )}
                         {deal.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -278,7 +298,7 @@ export function PipelineBoard({
                       onChange={(e) => setForm((f) => ({ ...f, responsavel: e.target.value }))}
                       className="w-full rounded-xl border-2 border-[#e3e7f7] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#E97933]"
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">Selecione…</option>
                       {admins.map((a) => (
                         <option key={a.codigo} value={a.nome}>{a.nome}</option>
                       ))}
@@ -319,6 +339,14 @@ export function PipelineBoard({
                 onChange={(v) => setForm((f) => ({ ...f, contato: formatPhoneBR(v) }))}
                 placeholder="(84) 9 9999-9999"
               />
+              {form.contato && (
+                <BotaoWhatsapp
+                  numero={form.contato}
+                  mensagem={mensagemWhatsapp?.({ cliente: form.cliente, servico: form.servico })}
+                  tamanho="grande"
+                  rotulo="Abrir conversa no WhatsApp"
+                />
+              )}
               <FormField label="Tags (separadas por vírgula)" value={form.tags} onChange={(v) => setForm((f) => ({ ...f, tags: v }))} placeholder="instagram, indicação" />
               <label className="block">
                 <span className="mb-1 block text-xs font-black uppercase tracking-wide text-[#1A1A1A]/50">Observações</span>

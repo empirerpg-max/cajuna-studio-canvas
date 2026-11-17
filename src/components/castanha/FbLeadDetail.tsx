@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Loader2, MessageCircle, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
+import { BotaoWhatsapp } from './BotaoWhatsapp';
 import type { AdminOption } from '@/lib/crm-types';
 import {
   ETAPAS_FB,
@@ -57,6 +58,8 @@ export function FbLeadDetail({
   saving,
   onSave,
   onClose,
+  onRegistrarContrato,
+  mensagem,
 }: {
   lead: FbLead;
   admins: AdminOption[];
@@ -65,6 +68,9 @@ export function FbLeadDetail({
   saving: boolean;
   onSave: (campos: CamposEditaveis) => void;
   onClose: () => void;
+  /** Quando o lead está em Ganho sem contrato. */
+  onRegistrarContrato?: () => void;
+  mensagem?: string;
 }) {
   const [form, setForm] = useState({
     etapa: etapaInicial ?? lead.etapa,
@@ -122,14 +128,16 @@ export function FbLeadDetail({
         </div>
 
         {wa && (
-          <a
-            href={wa}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-3 font-black text-white transition hover:bg-[#1ebe5b]"
+          <BotaoWhatsapp numero={lead.whatsapp} mensagem={mensagem} tamanho="grande" rotulo={`Chamar no WhatsApp · ${lead.whatsapp}`} className="mb-4" />
+        )}
+
+        {onRegistrarContrato && (
+          <button
+            onClick={onRegistrarContrato}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#1E8E3E] py-3 font-black text-[#1E8E3E] transition hover:bg-[#E3F4E8]"
           >
-            <MessageCircle size={18} /> Chamar no WhatsApp · {lead.whatsapp}
-          </a>
+            Registrar contrato desta venda
+          </button>
         )}
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -202,7 +210,7 @@ export function FbLeadDetail({
                 className={inputCls}
                 autoFocus
               >
-                <option value="">Selecione...</option>
+                <option value="">Selecione…</option>
                 {MOTIVOS_PERDA.map((m) => (
                   <option key={m} value={m}>
                     {m}

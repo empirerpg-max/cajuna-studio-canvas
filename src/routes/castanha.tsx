@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { PipelineBoard } from '@/components/PipelineBoard';
 import { Overview } from '@/components/Overview';
+import { PainelMes } from '@/components/castanha/PainelMes';
+import { ClientesTab } from '@/components/castanha/ClientesTab';
 import { InstallAppButton } from '@/components/castanha/InstallAppButton';
 import { FB_LEADS_QUERY_KEY, FbLeadsBoard } from '@/components/castanha/FbLeadsBoard';
 import { useQuery } from '@tanstack/react-query';
@@ -12,6 +14,16 @@ import { FUNIS, type AdminOption, type Deal } from '@/lib/crm-types';
 import { cn } from '@/lib/utils';
 import { OLD_SCRIPT_URL } from '@/lib/castanha/config';
 import { castanhaLogin, castanhaLogout, castanhaSession } from '@/lib/castanha/auth.functions';
+import { toast } from 'sonner';
+import { RegistrarContratoModal } from '@/components/castanha/RegistrarContratoModal';
+import { MotivoPerdaModal } from '@/components/castanha/MotivoPerdaModal';
+import { ContratoSaiModal } from '@/components/castanha/ContratoSaiModal';
+import { contratoAtivoDoCard, useDados, useRecarregarDados } from '@/components/castanha/useDados';
+import { cancelarContrato, registrarGanho, registrarMovimento } from '@/lib/castanha/dados.functions';
+import { fluxoSaidaDeal, type Contrato } from '@/lib/castanha/negocio';
+import { montarMensagem, parseCentavos } from '@/lib/castanha/util';
+import { MensagemWhatsappModal } from '@/components/castanha/MensagemWhatsappModal';
+import { useMensagens } from '@/components/castanha/useMensagens';
 
 export const Route = createFileRoute('/castanha')({
   head: () => ({
@@ -35,7 +47,8 @@ export const Route = createFileRoute('/castanha')({
 // Deals e admins continuam no Apps Script antigo (aba Usuarios / Deals).
 // O login agora passa pelo servidor do site (castanhaLogin), que grava um
 // cookie de sessão — assim o app instalado não desloga ao fechar.
-const API_URL = OLD_SCRIPT_URL;
+// VITE_CASTANHA_OLD_SCRIPT_URL só existe para testes locais com um script falso.
+const API_URL = (import.meta.env.VITE_CASTANHA_OLD_SCRIPT_URL as string | undefined) || OLD_SCRIPT_URL;
 
 const FB_TAB = 'Facebook Lead Ads';
 
@@ -45,7 +58,9 @@ interface AdminUser {
   tipo: string;
 }
 
-const TABS = ['Visão Geral', FB_TAB, ...FUNIS.map((f) => f.key)] as const;
+const CLIENTES_TAB = 'Clientes';
+
+const TABS = ['Visão Geral', FB_TAB, CLIENTES_TAB, ...FUNIS.map((f) => f.key)] as const;
 
 function AdminCajuna() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -88,6 +103,18 @@ function AdminCajuna() {
     staleTime: 60_000,
     retry: 1,
   });
+  const dados = useDados(loggedIn);
+  const recarregarDados = useRecarregarDados();
+  const [fluxoDeal, setFluxoDeal] = useState<
+    | { tipo: 'perdido'; deal: Deal; prev?: Deal; cancelarContratoId?: string }
+    | { tipo: 'sai'; deal: Deal; prev: Deal; contrato: Contrato; depoisMotivo: boolean }
+    | { tipo: 'ganho'; deal: Deal }
+    | null
+  >(null);
+  const [salvandoFluxo, setSalvandoFluxo] = useState(false);
+  const mensagens = useMensagens(loggedIn);
+  const [editandoMensagem, setEditandoMensagem] = useState(false);
+
   const fbResumo = useMemo(
     () => (fbQuery.data ? resumoFb(fbQuery.data.leads, Date.now()) : null),
     [fbQuery.data],
@@ -160,10 +187,52 @@ function AdminCajuna() {
     }
   }
 
-  function handleSaveDeal(deal: Deal) {
+  function gravarDeal(deal: Deal) {
     const exists = deals.some((d) => d.id === deal.id);
     const next = exists ? deals.map((d) => (d.id === deal.id ? deal : d)) : [...deals, deal];
     void persistDeals(next);
+  }
+
+  /** Grava o deal e, no funil Leads, registra a mudança de etapa (e abre o contrato se fechou). */
+  function moverDeal(deal: Deal, prev: Deal | undefined, motivo = '') {
+    gravarDeal(deal);
+    const funil = deal.funil || 'Leads';
+    const de = prev?.coluna ?? '';
+    const primeiraColuna = FUNIS[0].columns[0];
+    if (funil !== 'Leads' || de === deal.coluna || (!prev && deal.coluna === primeiraColuna)) return;
+    registrarMovimento({
+      data: { cardId: deal.id, funil: 'Leads', deEtapa: de, paraEtapa: deal.coluna, motivo, valor: parseCentavos(deal.valor) ?? 0 },
+    })
+      .then(() => recarregarDados())
+      .catch((err) => toast.error(`A mudança de etapa não entrou no painel: ${err instanceof Error ? err.message : err}`));
+    if (deal.coluna === 'Fechado') setFluxoDeal({ tipo: 'ganho', deal });
+  }
+
+  function handleSaveDeal(deal: Deal) {
+    const prev = deals.find((d) => d.id === deal.id);
+    const contrato = prev ? contratoAtivoDoCard(dados.data, deal.id) : undefined;
+    const fluxo = fluxoSaidaDeal({
+      funil: deal.funil || 'Leads',
+      de: prev?.coluna ?? '',
+      para: deal.coluna,
+      temContratoAtivo: !!contrato,
+    });
+    if (fluxo === 'motivo') return setFluxoDeal({ tipo: 'perdido', deal, prev });
+    if ((fluxo === 'contrato' || fluxo === 'contrato-e-motivo') && prev && contrato) {
+      return setFluxoDeal({ tipo: 'sai', deal, prev, contrato, depoisMotivo: fluxo === 'contrato-e-motivo' });
+    }
+    moverDeal(deal, prev);
+  }
+
+  /** Cancela o contrato depois que o card já mudou de etapa. */
+  async function cancelarContratoDepois(contratoId: string) {
+    try {
+      await cancelarContrato({ data: { contratoId } });
+      toast.success('Contrato cancelado.');
+      void recarregarDados();
+    } catch (err) {
+      toast.error(`O card mudou, mas o contrato não foi cancelado: ${err instanceof Error ? err.message : err}. Cancele na aba Clientes.`);
+    }
   }
 
   async function handleDeleteDeal(id: string) {
@@ -236,8 +305,8 @@ function AdminCajuna() {
       >
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
-            <div className="text-5xl mb-4">🛠️</div>
-            <h1 className="text-3xl font-black text-white">Painel Admin</h1>
+            <img src="/castanha-icons/icon-192.png" alt="" width={88} height={88} className="mx-auto mb-4 rounded-3xl border-2 border-white/10" />
+            <h1 className="text-3xl font-black text-white">Castanha</h1>
             <p className="mt-2 text-white/50">Acesso restrito à equipe Cajuna Studio.</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -278,7 +347,7 @@ function AdminCajuna() {
               className="w-full rounded-2xl py-4 font-black text-[#1A1A1A] shadow transition hover:opacity-90 disabled:opacity-60"
               style={{ background: '#E97933' }}
             >
-              {loading ? 'Verificando...' : 'Entrar'}
+              {loading ? 'Verificando…' : 'Entrar'}
             </button>
           </form>
           <div className="mt-6 flex justify-center">
@@ -334,9 +403,36 @@ function AdminCajuna() {
 
       <main>
         {activeTab === 'Visão Geral' ? (
-          <Overview deals={deals} funis={FUNIS} fbResumo={fbResumo} />
+          <Overview
+            deals={deals}
+            funis={FUNIS}
+            fbResumo={fbResumo}
+            painel={
+              <PainelMes
+                deals={deals}
+                leadsFb={fbQuery.data?.leads ?? []}
+                dados={dados.data}
+                carregando={dados.isLoading || fbQuery.isLoading}
+              />
+            }
+          />
+        ) : activeTab === CLIENTES_TAB ? (
+          <ClientesTab
+            dados={dados.data}
+            carregando={dados.isLoading}
+            erro={dados.error ? (dados.error instanceof Error ? dados.error.message : String(dados.error)) : ''}
+            adminNome={adminUser?.nome ?? ''}
+            mensagemModelo={mensagens.clientes}
+            onRecarregar={recarregarDados}
+          />
         ) : activeTab === FB_TAB ? (
-          <FbLeadsBoard admins={admins} onNaoAutenticado={handleSessaoExpirada} />
+          <FbLeadsBoard
+            admins={admins}
+            onNaoAutenticado={handleSessaoExpirada}
+            adminNome={adminUser?.nome ?? ''}
+            mensagemModelo={mensagens.prospeccao}
+            onEditarMensagem={() => setEditandoMensagem(true)}
+          />
         ) : (
           (() => {
             const funil = FUNIS.find((f) => f.key === activeTab)!;
@@ -351,11 +447,100 @@ function AdminCajuna() {
                 saving={saving}
                 onSave={handleSaveDeal}
                 onDelete={handleDeleteDeal}
+                onEditarMensagem={() => setEditandoMensagem(true)}
+                mensagemWhatsapp={(d) =>
+                  montarMensagem(funil.key === 'Leads' ? mensagens.prospeccao : mensagens.clientes, {
+                    nome: d.cliente,
+                    admin: adminUser?.nome ?? '',
+                    precisa: d.servico,
+                    negocio: '',
+                  })
+                }
               />
             );
           })()
         )}
       </main>
+
+      {editandoMensagem && (
+        <MensagemWhatsappModal mensagens={mensagens} adminNome={adminUser?.nome ?? ''} onClose={() => setEditandoMensagem(false)} />
+      )}
+
+      {fluxoDeal?.tipo === 'perdido' && (
+        <MotivoPerdaModal
+          nome={fluxoDeal.deal.cliente}
+          onCancelar={() => setFluxoDeal(null)}
+          onConfirmar={(motivo) => {
+            const f = fluxoDeal;
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev, motivo);
+            if (f.cancelarContratoId) void cancelarContratoDepois(f.cancelarContratoId);
+          }}
+        />
+      )}
+
+      {fluxoDeal?.tipo === 'sai' && (
+        <ContratoSaiModal
+          nome={fluxoDeal.deal.cliente}
+          contrato={fluxoDeal.contrato}
+          salvando={salvandoFluxo}
+          onVoltar={() => setFluxoDeal(null)}
+          onManter={() => {
+            const f = fluxoDeal;
+            if (f.depoisMotivo) return setFluxoDeal({ tipo: 'perdido', deal: f.deal, prev: f.prev });
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev);
+          }}
+          onCancelarContrato={() => {
+            const f = fluxoDeal;
+            if (f.depoisMotivo) {
+              return setFluxoDeal({ tipo: 'perdido', deal: f.deal, prev: f.prev, cancelarContratoId: f.contrato.contratoId });
+            }
+            setFluxoDeal(null);
+            moverDeal(f.deal, f.prev);
+            void cancelarContratoDepois(f.contrato.contratoId);
+          }}
+        />
+      )}
+
+      {fluxoDeal?.tipo === 'ganho' && (
+        <RegistrarContratoModal
+          modo="ganho"
+          clienteInicial={{ nome: fluxoDeal.deal.cliente, whatsapp: fluxoDeal.deal.contato, negocio: '' }}
+          contratoInicial={{ servico: fluxoDeal.deal.servico }}
+          contratoExistente={contratoAtivoDoCard(dados.data, fluxoDeal.deal.id)}
+          salvando={salvandoFluxo}
+          onAgoraNao={() => setFluxoDeal(null)}
+          onRegistrar={async (cliente, contrato) => {
+            const deal = fluxoDeal.deal;
+            setSalvandoFluxo(true);
+            try {
+              await registrarGanho({
+                data: {
+                  cliente: {
+                    nome: cliente.nome || deal.cliente,
+                    whatsapp: cliente.whatsapp ?? deal.contato,
+                    negocio: cliente.negocio ?? '',
+                    origem: 'Leads',
+                    cardId: deal.id,
+                    funil: 'Leads',
+                    obs: '',
+                  },
+                  contrato: contrato ? { ...contrato, clienteId: '', obs: contrato.obs ?? '' } : null,
+                  movimento: null,
+                },
+              });
+              toast.success(contrato ? 'Contrato registrado.' : 'Cliente registrado.');
+              setFluxoDeal(null);
+              void recarregarDados();
+            } catch (err) {
+              toast.error(`Não foi possível registrar: ${err instanceof Error ? err.message : err}`);
+            } finally {
+              setSalvandoFluxo(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
