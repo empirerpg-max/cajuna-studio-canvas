@@ -21,14 +21,23 @@ import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
 
-const WEEKDAYS = [
-  'segunda-feira',
-  'terça-feira',
-  'quarta-feira',
-  'quinta-feira',
-  'sexta-feira',
-  'sábado',
-  'domingo',
+// Prefixos aceitos para "Dia da semana" (sem acento, minúsculo): aceita
+// "Sexta-feira", "sexta", "Sex", "SÁBADO", "sabado", "Terca-feira" etc.
+const WEEKDAY_PREFIXES = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+
+const MONTHS = [
+  'janeiro',
+  'fevereiro',
+  'marco',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
 ];
 
 const WEEKDAY_LABELS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -42,8 +51,70 @@ const TIPO_STYLE: Record<string, { dot: string; label: string }> = {
   Meme: { dot: '#C9A227', label: 'Meme' },
 };
 
-function normalizeWeekday(value: string): string {
-  return (value || '').trim().toLowerCase();
+function normalizeText(value: string): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function parseIsoDate(value: string): Date | null {
+  const raw = (value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Índice 0..11 do mês do item, a partir de "Mês" (nome, número ou data) ou de "Dia" (data). */
+function monthIndex(item: CalendarItem): number {
+  const raw = (item['Mês'] || '').trim();
+  const iso = parseIsoDate(raw) || parseIsoDate(item['Dia'] || '');
+  if (iso) return iso.getMonth();
+  const norm = normalizeText(raw);
+  const byName = MONTHS.findIndex((m) => norm.startsWith(m.slice(0, 3)));
+  if (byName >= 0) return byName;
+  const num = parseInt(norm, 10);
+  if (num >= 1 && num <= 12) return num - 1;
+  const fromDia = (item['Dia'] || '').match(/^\s*\d{1,2}\/(\d{1,2})/);
+  if (fromDia) return parseInt(fromDia[1], 10) - 1;
+  return -1;
+}
+
+function monthLabel(index: number, fallback: string): string {
+  if (index < 0) return fallback || 'Sem mês';
+  const names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  return names[index];
+}
+
+function dayNumber(item: CalendarItem): number | null {
+  const iso = parseIsoDate(item['Dia'] || '');
+  if (iso) return iso.getDate();
+  const match = (item['Dia'] || '').match(/^\s*(\d{1,2})/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function displayDay(item: CalendarItem): string {
+  const iso = parseIsoDate(item['Dia'] || '');
+  return iso ? String(iso.getDate()).padStart(2, '0') : item['Dia'] || '';
+}
+
+/** Índice 0 (segunda) .. 6 (domingo). Usa "Dia da semana"; se vazio/inválido, calcula pela data. */
+function weekdayIndex(item: CalendarItem): number {
+  const norm = normalizeText(item['Dia da semana']);
+  const byName = WEEKDAY_PREFIXES.findIndex((prefix) => norm.startsWith(prefix));
+  if (byName >= 0) return byName;
+
+  const iso = parseIsoDate(item['Dia'] || '');
+  const mes = monthIndex(item);
+  const dia = dayNumber(item);
+  let date: Date | null = iso;
+  if (!date && mes >= 0 && dia) {
+    const ano = parseInt(item['Ano'] || '', 10) || new Date().getFullYear();
+    date = new Date(ano, mes, dia);
+  }
+  if (!date) return -1;
+  return (date.getDay() + 6) % 7;
 }
 
 type Slide = { type: 'image'; url: string; downloadUrl: string } | { type: 'text'; content: string };
@@ -139,7 +210,7 @@ function weekdayColumns(items: CalendarItem[]) {
   let hasContent = false;
 
   items.forEach((item) => {
-    const idx = WEEKDAYS.indexOf(normalizeWeekday(item['Dia da semana']));
+    const idx = weekdayIndex(item);
     if (idx < 0) return;
     if (idx === 0 && hasContent) {
       weeks.push(current);
@@ -175,16 +246,36 @@ export function ContentCalendar({
 }) {
   const [openItem, setOpenItem] = useState<CalendarItem | null>(null);
   const [previewMes, setPreviewMes] = useState<string | null>(null);
+  const [selectedMes, setSelectedMes] = useState<string | null>(null);
 
+  // Agrupa por mês normalizado ("novembro", "Novembro ", "11", data…) e ordena jan→dez.
   const grouped = useMemo(() => {
-    const map = new Map<string, CalendarItem[]>();
+    const map = new Map<string, { index: number; items: CalendarItem[] }>();
     items.forEach((item) => {
-      const mes = item['Mês'] || 'Sem mês';
-      if (!map.has(mes)) map.set(mes, []);
-      map.get(mes)!.push(item);
+      const index = monthIndex(item);
+      const mes = monthLabel(index, (item['Mês'] || '').trim());
+      if (!map.has(mes)) map.set(mes, { index, items: [] });
+      map.get(mes)!.items.push(item);
     });
-    return Array.from(map.entries());
+    return Array.from(map.entries())
+      .sort((a, b) => (a[1].index < 0 ? 99 : a[1].index) - (b[1].index < 0 ? 99 : b[1].index))
+      .map(([mes, group]) => [mes, group.items] as [string, CalendarItem[]]);
   }, [items]);
+
+  // Mês padrão: o mês atual, se existir no calendário; senão o próximo; senão o último.
+  const defaultMes = useMemo(() => {
+    if (grouped.length === 0) return null;
+    const atual = new Date().getMonth();
+    const comIndice = grouped.map(([mes, its]) => ({ mes, index: monthIndex(its[0]) }));
+    return (
+      comIndice.find((g) => g.index === atual)?.mes ||
+      comIndice.find((g) => g.index > atual)?.mes ||
+      grouped[grouped.length - 1][0]
+    );
+  }, [grouped]);
+
+  const activeMes = selectedMes && grouped.some(([mes]) => mes === selectedMes) ? selectedMes : defaultMes;
+  const visibleGroups = grouped.filter(([mes]) => mes === activeMes);
 
   if (loading) {
     return (
@@ -203,8 +294,45 @@ export function ContentCalendar({
   }
 
   return (
-    <div className="space-y-10">
-      {grouped.map(([mes, mesItems]) => (
+    <div className="space-y-6">
+      {/* Seletor de mês */}
+      {grouped.length > 0 && (
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-[#1A1A1A]/50">Mês</span>
+          <div className="-mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1">
+            {grouped.map(([mes, mesItems]) => {
+              const ativo = mes === activeMes;
+              const posts = mesItems.filter((it) => normalizeText(it['Conteúdo?']) === 'sim').length;
+              return (
+                <button
+                  key={mes}
+                  type="button"
+                  onClick={() => setSelectedMes(mes)}
+                  aria-pressed={ativo}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-black uppercase tracking-wide transition',
+                    ativo
+                      ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white'
+                      : 'border-[#1A1A1A]/15 bg-white text-[#1A1A1A]/70 hover:border-[#1A1A1A]/40'
+                  )}
+                >
+                  {mes}
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 py-px text-[10px]',
+                      ativo ? 'bg-[#E97933] text-white' : 'bg-[#F0EAE3] text-[#1A1A1A]/60'
+                    )}
+                  >
+                    {posts}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {visibleGroups.map(([mes, mesItems]) => (
         <div key={mes} className="overflow-hidden rounded-3xl border-2 border-[#1A1A1A]">
           {/* Header estilo calendário editorial */}
           <div className="flex items-start justify-between gap-4 p-5" style={{ backgroundColor: '#1A1A1A' }}>
@@ -239,7 +367,7 @@ export function ContentCalendar({
                   if (!item) {
                     return <div key={di} className="min-h-[120px] border-t" style={{ borderColor: '#e3e7f7' }} />;
                   }
-                  const temConteudo = (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim';
+                  const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
                   const tipo = (item['Tipo'] || '').trim();
                   const tipoStyle = TIPO_STYLE[tipo];
                   const temImagem = imageSlides(item).some((s) => s.type === 'image');
@@ -254,7 +382,7 @@ export function ContentCalendar({
                       className="min-h-[120px] border-t p-2.5 text-left transition hover:bg-white disabled:cursor-default sm:p-3"
                       style={{ borderColor: '#e3e7f7' }}
                     >
-                      <span className="text-xs font-black text-[#1A1A1A]">{item['Dia']}</span>
+                      <span className="text-xs font-black text-[#1A1A1A]">{displayDay(item)}</span>
                       {temConteudo ? (
                         <div className="mt-1.5">
                           {(tipoStyle || temStory) && (
@@ -307,6 +435,37 @@ export function ContentCalendar({
               </div>
             ))}
           </div>
+
+          {/* Linhas sem dia da semana/data reconhecível: nunca esconder conteúdo */}
+          {(() => {
+            const semDia = mesItems.filter((it) => weekdayIndex(it) < 0 && (it['Título'] || '').trim());
+            if (semDia.length === 0) return null;
+            return (
+              <div className="border-t-2 border-[#1A1A1A] bg-white p-4">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#1A1A1A]/50">
+                  Sem dia definido
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {semDia.map((item, i) => {
+                    const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
+                    return (
+                      <button
+                        key={item._row || i}
+                        type="button"
+                        onClick={() => temConteudo && setOpenItem(item)}
+                        disabled={!temConteudo}
+                        className="rounded-xl border p-3 text-left text-xs font-bold text-[#1A1A1A] transition hover:bg-[#FFF8F2] disabled:cursor-default disabled:text-[#1A1A1A]/40"
+                        style={{ borderColor: '#e3e7f7' }}
+                      >
+                        {item['Dia'] && <span className="mr-1.5 font-black">{displayDay(item)}</span>}
+                        <span className="whitespace-pre-line">{item['Título']}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       ))}
 
@@ -363,7 +522,7 @@ function InstaPreviewModal({
   const grupos = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
     items
-      .filter((item) => (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim')
+      .filter((item) => normalizeText(item['Conteúdo?']) === 'sim')
       .forEach((item) => {
         const handle = (item['Insta'] || '').trim() || clienteNome;
         if (!map.has(handle)) map.set(handle, []);
