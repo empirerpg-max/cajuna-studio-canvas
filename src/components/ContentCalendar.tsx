@@ -204,6 +204,114 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+type DayCell = { day: number | null; items: CalendarItem[] };
+
+/**
+ * Monta o mês como um calendário de verdade (segunda a domingo), posicionando
+ * cada post pela data (colunas "Dia" + "Mês", ano da coluna "Ano" ou o atual).
+ * A coluna "Dia da semana" não é necessária. Se o mês não for reconhecido,
+ * usa a ordem/dia da semana da planilha como antes.
+ */
+export function monthGrid(items: CalendarItem[]): { weeks: DayCell[][]; semDia: CalendarItem[] } {
+  const mes = items.map(monthIndex).find((m) => m >= 0) ?? -1;
+  if (mes < 0) {
+    const weeks = weekdayColumns(items).map((week) =>
+      week.map((item) => ({ day: item ? dayNumber(item) : null, items: item ? [item] : [] }))
+    );
+    return { weeks, semDia: items.filter((it) => weekdayIndex(it) < 0) };
+  }
+
+  const anoItem = items.map((it) => parseInt(it['Ano'] || '', 10)).find((a) => a > 1900);
+  const isoItem = items.map((it) => parseIsoDate(it['Dia'] || '')).find(Boolean);
+  const ano = anoItem || isoItem?.getFullYear() || new Date().getFullYear();
+  const totalDias = new Date(ano, mes + 1, 0).getDate();
+  const offset = (new Date(ano, mes, 1).getDay() + 6) % 7; // segunda = 0
+
+  const porDia = new Map<number, CalendarItem[]>();
+  const semDia: CalendarItem[] = [];
+  items.forEach((item) => {
+    const dia = dayNumber(item);
+    if (!dia || dia > totalDias) {
+      semDia.push(item);
+      return;
+    }
+    if (!porDia.has(dia)) porDia.set(dia, []);
+    porDia.get(dia)!.push(item);
+  });
+
+  const cells: DayCell[] = [
+    ...Array.from({ length: offset }, () => ({ day: null, items: [] })),
+    ...Array.from({ length: totalDias }, (_, i) => ({ day: i + 1, items: porDia.get(i + 1) || [] })),
+  ];
+  while (cells.length % 7) cells.push({ day: null, items: [] });
+
+  const weeks: DayCell[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return { weeks, semDia };
+}
+
+function DayEntry({ item, onOpen }: { item: CalendarItem; onOpen: (item: CalendarItem) => void }) {
+  const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
+  const tipo = (item['Tipo'] || '').trim();
+  const tipoStyle = TIPO_STYLE[tipo];
+  const temImagem = imageSlides(item).some((s) => s.type === 'image');
+  const temStory = storySlides(item).length > 0;
+
+  return (
+    <button
+      type="button"
+      onClick={() => temConteudo && onOpen(item)}
+      disabled={!temConteudo}
+      className="block w-full rounded-lg p-1 text-left transition hover:bg-white disabled:cursor-default disabled:hover:bg-transparent"
+    >
+      {temConteudo ? (
+        <>
+          {(tipoStyle || temStory) && (
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              {tipoStyle && (
+                <>
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
+                  <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
+                </>
+              )}
+              {temStory && (
+                <span
+                  className="rounded-full px-1.5 py-px text-[8px] font-black uppercase tracking-wide text-white"
+                  style={{ background: STORY_RING }}
+                >
+                  + Story
+                </span>
+              )}
+            </div>
+          )}
+          {!temImagem && (
+            <div className="flex justify-center py-1.5">
+              <ImageOff size={30} strokeWidth={1.4} className="text-[#1A1A1A]/20" />
+            </div>
+          )}
+          <p
+            className={cn(
+              'whitespace-pre-line text-[11px] font-bold leading-snug break-words',
+              temImagem ? 'text-[#1A1A1A]' : 'text-center text-[#1A1A1A]/60'
+            )}
+          >
+            {item['Título']}
+          </p>
+          {item['Funil'] && item['Nome do funil'] && (
+            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#E97933]">
+              Funil {item['Funil']} · {item['Nome do funil']}
+            </p>
+          )}
+        </>
+      ) : (
+        item['Título'] && (
+          <p className="whitespace-pre-line text-[11px] italic leading-snug text-[#1A1A1A]/40">{item['Título']}</p>
+        )
+      )}
+    </button>
+  );
+}
+
 function weekdayColumns(items: CalendarItem[]) {
   const weeks: (CalendarItem | null)[][] = [];
   let current: (CalendarItem | null)[] = new Array(7).fill(null);
@@ -361,84 +469,38 @@ export function ContentCalendar({
           </div>
 
           <div className="bg-[#FFF8F2]">
-            {weekdayColumns(mesItems).map((week, wi) => (
+            {monthGrid(mesItems).weeks.map((week, wi) => (
               <div key={wi} className="grid grid-cols-7 divide-x" style={{ borderColor: '#e3e7f7' }}>
-                {week.map((item, di) => {
-                  if (!item) {
-                    return <div key={di} className="min-h-[120px] border-t" style={{ borderColor: '#e3e7f7' }} />;
-                  }
-                  const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
-                  const tipo = (item['Tipo'] || '').trim();
-                  const tipoStyle = TIPO_STYLE[tipo];
-                  const temImagem = imageSlides(item).some((s) => s.type === 'image');
-                  const temStory = storySlides(item).length > 0;
-
-                  return (
-                    <button
-                      key={di}
-                      type="button"
-                      onClick={() => temConteudo && setOpenItem(item)}
-                      disabled={!temConteudo}
-                      className="min-h-[120px] border-t p-2.5 text-left transition hover:bg-white disabled:cursor-default sm:p-3"
-                      style={{ borderColor: '#e3e7f7' }}
-                    >
-                      <span className="text-xs font-black text-[#1A1A1A]">{displayDay(item)}</span>
-                      {temConteudo ? (
-                        <div className="mt-1.5">
-                          {(tipoStyle || temStory) && (
-                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                              {tipoStyle && (
-                                <>
-                                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
-                                  <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
-                                </>
-                              )}
-                              {temStory && (
-                                <span
-                                  className="rounded-full px-1.5 py-px text-[8px] font-black uppercase tracking-wide text-white"
-                                  style={{ background: STORY_RING }}
-                                >
-                                  + Story
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {!temImagem && (
-                            <div className="flex justify-center py-1.5">
-                              <ImageOff size={30} strokeWidth={1.4} className="text-[#1A1A1A]/20" />
-                            </div>
-                          )}
-                          <p
-                            className={cn(
-                              'whitespace-pre-line text-[11px] font-bold leading-snug break-words',
-                              temImagem ? 'text-[#1A1A1A]' : 'text-center text-[#1A1A1A]/60'
-                            )}
-                          >
-                            {item['Título']}
-                          </p>
-                          {item['Funil'] && item['Nome do funil'] && (
-                            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#E97933]">
-                              Funil {item['Funil']} · {item['Nome do funil']}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        item['Título'] && (
-                          <p className="mt-2 whitespace-pre-line text-[11px] italic leading-snug text-[#1A1A1A]/40">
-                            {item['Título']}
-                          </p>
-                        )
-                      )}
-                    </button>
-                  );
-                })}
+                {week.map((cell, di) => (
+                  <div
+                    key={di}
+                    className={cn('min-h-[120px] border-t p-1.5 sm:p-2', cell.day === null && 'bg-[#1A1A1A]/[0.03]')}
+                    style={{ borderColor: '#e3e7f7' }}
+                  >
+                    {cell.day !== null && (
+                      <span
+                        className={cn(
+                          'block px-1 text-xs font-black',
+                          cell.items.length ? 'text-[#1A1A1A]' : 'text-[#1A1A1A]/25'
+                        )}
+                      >
+                        {String(cell.day).padStart(2, '0')}
+                      </span>
+                    )}
+                    <div className="space-y-1.5">
+                      {cell.items.map((item, ii) => (
+                        <DayEntry key={item._row || ii} item={item} onOpen={setOpenItem} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
 
           {/* Linhas sem dia da semana/data reconhecível: nunca esconder conteúdo */}
           {(() => {
-            const semDia = mesItems.filter((it) => weekdayIndex(it) < 0 && (it['Título'] || '').trim());
+            const semDia = monthGrid(mesItems).semDia.filter((it) => (it['Título'] || '').trim());
             if (semDia.length === 0) return null;
             return (
               <div className="border-t-2 border-[#1A1A1A] bg-white p-4">
