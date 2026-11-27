@@ -1,6 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Download, Bookmark, Grid3x3, Eye, ImageOff } from 'lucide-react';
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  MessageCircle,
+  Download,
+  Bookmark,
+  Grid3x3,
+  Eye,
+  ImageOff,
+  Copy,
+  Check,
+  CircleDashed,
+  Pause,
+  Play,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
@@ -16,6 +32,8 @@ const WEEKDAYS = [
 ];
 
 const WEEKDAY_LABELS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+const STORY_RING = 'linear-gradient(45deg, #F9CE34, #EE2A7B 50%, #6228D7)';
 
 const TIPO_STYLE: Record<string, { dot: string; label: string }> = {
   Carrossel: { dot: '#2D5F8A', label: 'Carrossel' },
@@ -73,6 +91,46 @@ function imageSlides(item: CalendarItem): Slide[] {
     slides.push({ type: 'text', content: item['Título'] || '' });
   }
   return slides;
+}
+
+// Story vinculado ao post: coluna "Story" e/ou "Story 1" … "Story 10" da planilha.
+// Formato vertical 9:16 (1080x1920), igual ao Instagram.
+const STORY_DURATION_MS = 5000;
+
+function storySlides(item: CalendarItem): Slide[] {
+  const raws = [item['Story'], ...Array.from({ length: 10 }, (_, i) => item[`Story ${i + 1}`])];
+  const slides: Slide[] = [];
+  raws.forEach((value) => {
+    const raw = (value || '').trim();
+    if (!raw) return;
+    slides.push(
+      isImageLink(raw)
+        ? { type: 'image', url: toDriveImageUrl(raw, 1080), downloadUrl: toDriveDownloadUrl(raw) }
+        : { type: 'text', content: raw }
+    );
+  });
+  return slides;
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(area);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function weekdayColumns(items: CalendarItem[]) {
@@ -185,6 +243,7 @@ export function ContentCalendar({
                   const tipo = (item['Tipo'] || '').trim();
                   const tipoStyle = TIPO_STYLE[tipo];
                   const temImagem = imageSlides(item).some((s) => s.type === 'image');
+                  const temStory = storySlides(item).length > 0;
 
                   return (
                     <button
@@ -198,10 +257,22 @@ export function ContentCalendar({
                       <span className="text-xs font-black text-[#1A1A1A]">{item['Dia']}</span>
                       {temConteudo ? (
                         <div className="mt-1.5">
-                          {tipoStyle && (
-                            <div className="mb-1 flex items-center gap-1.5">
-                              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
-                              <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
+                          {(tipoStyle || temStory) && (
+                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                              {tipoStyle && (
+                                <>
+                                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
+                                  <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
+                                </>
+                              )}
+                              {temStory && (
+                                <span
+                                  className="rounded-full px-1.5 py-px text-[8px] font-black uppercase tracking-wide text-white"
+                                  style={{ background: STORY_RING }}
+                                >
+                                  + Story
+                                </span>
+                              )}
                             </div>
                           )}
                           {!temImagem && (
@@ -462,6 +533,10 @@ function PostPreviewModal({
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [commentDraft, setCommentDraft] = useState(item['Comentário'] || '');
   const [showCommentBox, setShowCommentBox] = useState(false);
+  const [showStory, setShowStory] = useState(false);
+  const [legendaCopiada, setLegendaCopiada] = useState(false);
+  const stories = useMemo(() => storySlides(item), [item]);
+  const temStory = stories.length > 0;
 
   const roteiro = (item['Roteiro'] || '').trim();
   const direcao = (item['Direção criativa'] || '').trim();
@@ -481,6 +556,13 @@ function PostPreviewModal({
       setShowHeartBurst(true);
       window.setTimeout(() => setShowHeartBurst(false), 700);
     }
+  }
+
+  async function copiarLegenda() {
+    const ok = await copyText(item['Legenda'] || '');
+    if (!ok) return;
+    setLegendaCopiada(true);
+    window.setTimeout(() => setLegendaCopiada(false), 1800);
   }
 
   function submitComment() {
@@ -505,13 +587,44 @@ function PostPreviewModal({
         {/* Header estilo Instagram */}
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: '#f0f0f0' }}>
           <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1A1A1A] text-xs font-black text-white"
-              style={{ backgroundColor: '#E97933' }}
-            >
-              {clienteNome.charAt(0).toUpperCase()}
+            {temStory ? (
+              <button
+                type="button"
+                onClick={() => setShowStory(true)}
+                aria-label="Ver story deste post"
+                title="Ver story deste post"
+                className="rounded-full p-[2px] transition hover:scale-105"
+                style={{ background: STORY_RING }}
+              >
+                <span className="block rounded-full bg-white p-[2px]">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white"
+                    style={{ backgroundColor: '#E97933' }}
+                  >
+                    {clienteNome.charAt(0).toUpperCase()}
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1A1A1A] text-xs font-black text-white"
+                style={{ backgroundColor: '#E97933' }}
+              >
+                {clienteNome.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="leading-tight">
+              <span className="block text-sm font-black text-[#1A1A1A]">{clienteNome}</span>
+              {temStory && (
+                <button
+                  type="button"
+                  onClick={() => setShowStory(true)}
+                  className="text-[11px] font-bold text-[#EE2A7B] hover:underline"
+                >
+                  Ver story deste post
+                </button>
+              )}
             </div>
-            <span className="text-sm font-black text-[#1A1A1A]">{clienteNome}</span>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#F0EAE3]">
             <X size={18} />
@@ -621,6 +734,17 @@ function PostPreviewModal({
               <Download size={22} />
             </a>
           )}
+          {temStory && (
+            <button
+              type="button"
+              onClick={() => setShowStory(true)}
+              aria-label="Ver story deste post"
+              title="Ver story deste post"
+              className="transition hover:text-[#EE2A7B]"
+            >
+              <CircleDashed size={22} />
+            </button>
+          )}
           <Bookmark size={22} className="ml-auto" />
         </div>
 
@@ -635,6 +759,19 @@ function PostPreviewModal({
               <span className="font-black">{clienteNome}</span>{' '}
               <span className="whitespace-pre-line">{item['Legenda']}</span>
             </p>
+            <button
+              type="button"
+              onClick={copiarLegenda}
+              className={cn(
+                'mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wide transition',
+                legendaCopiada
+                  ? 'border-[#4C9A2A] bg-[#4C9A2A] text-white'
+                  : 'border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'
+              )}
+            >
+              {legendaCopiada ? <Check size={14} /> : <Copy size={14} />}
+              {legendaCopiada ? 'Legenda copiada!' : 'Copiar legenda'}
+            </button>
           </div>
         )}
 
@@ -692,6 +829,198 @@ function PostPreviewModal({
                 <p className="mt-1 text-sm text-[#1A1A1A]/80 whitespace-pre-line">{direcao}</p>
               </div>
             )}
+          </div>
+        )}
+      </motion.div>
+
+      <AnimatePresence>
+        {showStory && temStory && (
+          <StoryViewer
+            slides={stories}
+            item={item}
+            clienteNome={clienteNome}
+            onClose={() => setShowStory(false)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function StoryViewer({
+  slides,
+  item,
+  clienteNome,
+  onClose,
+}: {
+  slides: Slide[];
+  item: CalendarItem;
+  clienteNome: string;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const elapsedRef = useRef(0);
+  const current = slides[Math.min(index, slides.length - 1)];
+
+  const next = useCallback(() => {
+    elapsedRef.current = 0;
+    setProgress(0);
+    if (index < slides.length - 1) setIndex((i) => i + 1);
+    else onClose();
+  }, [index, slides.length, onClose]);
+
+  const prev = useCallback(() => {
+    elapsedRef.current = 0;
+    setProgress(0);
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
+
+  // Barra de progresso + avanço automático (pausa ao segurar)
+  useEffect(() => {
+    if (paused) return;
+    let last = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      elapsedRef.current += now - last;
+      last = now;
+      const pct = Math.min(1, elapsedRef.current / STORY_DURATION_MS);
+      setProgress(pct);
+      if (pct >= 1) next();
+      else frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [paused, next]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') next();
+      else if (e.key === 'ArrowLeft') prev();
+      else if (e.key === ' ') {
+        e.preventDefault();
+        setPaused((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [next, prev, onClose]);
+
+  const holdHandlers = {
+    onPointerDown: () => setPaused(true),
+    onPointerUp: () => setPaused(false),
+    onPointerLeave: () => setPaused(false),
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 sm:p-6"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      {/* Formato padrão de stories: 9:16 (1080x1920) */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.94 }}
+        transition={{ duration: 0.2 }}
+        className="relative aspect-[9/16] w-[min(100vw,calc(100dvh*9/16))] overflow-hidden bg-[#141414] select-none sm:w-[min(calc(90dvh*9/16),480px)] sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {current.type === 'image' ? (
+          <img
+            key={current.url}
+            src={current.url}
+            alt={`Story · ${item['Título'] || 'Post'}`}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-10 text-center">
+            <ImageOff size={76} strokeWidth={1.3} className="text-white/25" />
+            <p className="whitespace-pre-line text-base font-bold leading-snug text-white/75">{current.content}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-white/40">Story em produção</span>
+          </div>
+        )}
+
+        {/* Zonas de toque: esquerda volta, direita avança, segurar pausa */}
+        <div className="absolute inset-0 z-10 flex">
+          <button type="button" aria-label="Story anterior" className="h-full w-1/3" onClick={prev} {...holdHandlers} />
+          <button type="button" aria-label="Próximo story" className="h-full w-2/3" onClick={next} {...holdHandlers} />
+        </div>
+
+        {/* Topo: barras de progresso + perfil + ações */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-3">
+          <div className="flex gap-1">
+            {slides.map((_, i) => (
+              <span key={i} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/35">
+                <span
+                  className="block h-full bg-white"
+                  style={{ width: `${i < index ? 100 : i === index ? progress * 100 : 0}%` }}
+                />
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2.5">
+            <span className="rounded-full p-[2px]" style={{ background: STORY_RING }}>
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black text-xs font-black text-white"
+                style={{ backgroundColor: '#E97933' }}
+              >
+                {clienteNome.charAt(0).toUpperCase()}
+              </span>
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-black text-white">{clienteNome}</p>
+              <p className="truncate text-[11px] font-bold text-white/70">
+                Story do post{item['Dia'] ? ` · Dia ${item['Dia']}` : ''}
+                {item['Título'] ? ` · ${item['Título']}` : ''}
+              </p>
+            </div>
+
+            <div className="pointer-events-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPaused((p) => !p)}
+                aria-label={paused ? 'Continuar' : 'Pausar'}
+                className="rounded-full p-1.5 text-white hover:bg-white/15"
+              >
+                {paused ? <Play size={18} /> : <Pause size={18} />}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar story"
+                className="rounded-full p-1.5 text-white hover:bg-white/15"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Rodapé: download em qualidade original */}
+        {current.type === 'image' && (
+          <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-black/60 to-transparent px-4 pb-5 pt-10">
+            <a
+              href={current.downloadUrl}
+              download
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setPaused(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-[#1A1A1A] transition hover:bg-white/85"
+            >
+              <Download size={14} />
+              Baixar story{slides.length > 1 ? ` ${index + 1}/${slides.length}` : ''}
+            </a>
           </div>
         )}
       </motion.div>
