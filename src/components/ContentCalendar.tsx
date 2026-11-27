@@ -1,21 +1,48 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Download, Bookmark, Grid3x3, Eye, ImageOff } from 'lucide-react';
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  MessageCircle,
+  Download,
+  Bookmark,
+  Grid3x3,
+  Eye,
+  ImageOff,
+  Copy,
+  Check,
+  CircleDashed,
+  Pause,
+  Play,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type CalendarItem = Record<string, string> & { _row?: string };
 
-const WEEKDAYS = [
-  'segunda-feira',
-  'terça-feira',
-  'quarta-feira',
-  'quinta-feira',
-  'sexta-feira',
-  'sábado',
-  'domingo',
+// Prefixos aceitos para "Dia da semana" (sem acento, minúsculo): aceita
+// "Sexta-feira", "sexta", "Sex", "SÁBADO", "sabado", "Terca-feira" etc.
+const WEEKDAY_PREFIXES = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+
+const MONTHS = [
+  'janeiro',
+  'fevereiro',
+  'marco',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
 ];
 
 const WEEKDAY_LABELS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+const STORY_RING = 'linear-gradient(45deg, #F9CE34, #EE2A7B 50%, #6228D7)';
 
 const TIPO_STYLE: Record<string, { dot: string; label: string }> = {
   Carrossel: { dot: '#2D5F8A', label: 'Carrossel' },
@@ -24,8 +51,70 @@ const TIPO_STYLE: Record<string, { dot: string; label: string }> = {
   Meme: { dot: '#C9A227', label: 'Meme' },
 };
 
-function normalizeWeekday(value: string): string {
-  return (value || '').trim().toLowerCase();
+function normalizeText(value: string): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function parseIsoDate(value: string): Date | null {
+  const raw = (value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Índice 0..11 do mês do item, a partir de "Mês" (nome, número ou data) ou de "Dia" (data). */
+function monthIndex(item: CalendarItem): number {
+  const raw = (item['Mês'] || '').trim();
+  const iso = parseIsoDate(raw) || parseIsoDate(item['Dia'] || '');
+  if (iso) return iso.getMonth();
+  const norm = normalizeText(raw);
+  const byName = MONTHS.findIndex((m) => norm.startsWith(m.slice(0, 3)));
+  if (byName >= 0) return byName;
+  const num = parseInt(norm, 10);
+  if (num >= 1 && num <= 12) return num - 1;
+  const fromDia = (item['Dia'] || '').match(/^\s*\d{1,2}\/(\d{1,2})/);
+  if (fromDia) return parseInt(fromDia[1], 10) - 1;
+  return -1;
+}
+
+function monthLabel(index: number, fallback: string): string {
+  if (index < 0) return fallback || 'Sem mês';
+  const names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  return names[index];
+}
+
+function dayNumber(item: CalendarItem): number | null {
+  const iso = parseIsoDate(item['Dia'] || '');
+  if (iso) return iso.getDate();
+  const match = (item['Dia'] || '').match(/^\s*(\d{1,2})/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function displayDay(item: CalendarItem): string {
+  const iso = parseIsoDate(item['Dia'] || '');
+  return iso ? String(iso.getDate()).padStart(2, '0') : item['Dia'] || '';
+}
+
+/** Índice 0 (segunda) .. 6 (domingo). Usa "Dia da semana"; se vazio/inválido, calcula pela data. */
+function weekdayIndex(item: CalendarItem): number {
+  const norm = normalizeText(item['Dia da semana']);
+  const byName = WEEKDAY_PREFIXES.findIndex((prefix) => norm.startsWith(prefix));
+  if (byName >= 0) return byName;
+
+  const iso = parseIsoDate(item['Dia'] || '');
+  const mes = monthIndex(item);
+  const dia = dayNumber(item);
+  let date: Date | null = iso;
+  if (!date && mes >= 0 && dia) {
+    const ano = parseInt(item['Ano'] || '', 10) || new Date().getFullYear();
+    date = new Date(ano, mes, dia);
+  }
+  if (!date) return -1;
+  return (date.getDay() + 6) % 7;
 }
 
 type Slide = { type: 'image'; url: string; downloadUrl: string } | { type: 'text'; content: string };
@@ -75,13 +164,161 @@ function imageSlides(item: CalendarItem): Slide[] {
   return slides;
 }
 
+// Story vinculado ao post: coluna "Story" e/ou "Story 1" … "Story 10" da planilha.
+// Formato vertical 9:16 (1080x1920), igual ao Instagram.
+const STORY_DURATION_MS = 5000;
+
+function storySlides(item: CalendarItem): Slide[] {
+  const raws = [item['Story'], ...Array.from({ length: 10 }, (_, i) => item[`Story ${i + 1}`])];
+  const slides: Slide[] = [];
+  raws.forEach((value) => {
+    const raw = (value || '').trim();
+    if (!raw) return;
+    slides.push(
+      isImageLink(raw)
+        ? { type: 'image', url: toDriveImageUrl(raw, 1080), downloadUrl: toDriveDownloadUrl(raw) }
+        : { type: 'text', content: raw }
+    );
+  });
+  return slides;
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(area);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+type DayCell = { day: number | null; items: CalendarItem[] };
+
+/**
+ * Monta o mês como um calendário de verdade (segunda a domingo), posicionando
+ * cada post pela data (colunas "Dia" + "Mês", ano da coluna "Ano" ou o atual).
+ * A coluna "Dia da semana" não é necessária. Se o mês não for reconhecido,
+ * usa a ordem/dia da semana da planilha como antes.
+ */
+export function monthGrid(items: CalendarItem[]): { weeks: DayCell[][]; semDia: CalendarItem[] } {
+  const mes = items.map(monthIndex).find((m) => m >= 0) ?? -1;
+  if (mes < 0) {
+    const weeks = weekdayColumns(items).map((week) =>
+      week.map((item) => ({ day: item ? dayNumber(item) : null, items: item ? [item] : [] }))
+    );
+    return { weeks, semDia: items.filter((it) => weekdayIndex(it) < 0) };
+  }
+
+  const anoItem = items.map((it) => parseInt(it['Ano'] || '', 10)).find((a) => a > 1900);
+  const isoItem = items.map((it) => parseIsoDate(it['Dia'] || '')).find(Boolean);
+  const ano = anoItem || isoItem?.getFullYear() || new Date().getFullYear();
+  const totalDias = new Date(ano, mes + 1, 0).getDate();
+  const offset = (new Date(ano, mes, 1).getDay() + 6) % 7; // segunda = 0
+
+  const porDia = new Map<number, CalendarItem[]>();
+  const semDia: CalendarItem[] = [];
+  items.forEach((item) => {
+    const dia = dayNumber(item);
+    if (!dia || dia > totalDias) {
+      semDia.push(item);
+      return;
+    }
+    if (!porDia.has(dia)) porDia.set(dia, []);
+    porDia.get(dia)!.push(item);
+  });
+
+  const cells: DayCell[] = [
+    ...Array.from({ length: offset }, () => ({ day: null, items: [] })),
+    ...Array.from({ length: totalDias }, (_, i) => ({ day: i + 1, items: porDia.get(i + 1) || [] })),
+  ];
+  while (cells.length % 7) cells.push({ day: null, items: [] });
+
+  const weeks: DayCell[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return { weeks, semDia };
+}
+
+function DayEntry({ item, onOpen }: { item: CalendarItem; onOpen: (item: CalendarItem) => void }) {
+  const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
+  const tipo = (item['Tipo'] || '').trim();
+  const tipoStyle = TIPO_STYLE[tipo];
+  const temImagem = imageSlides(item).some((s) => s.type === 'image');
+  const temStory = storySlides(item).length > 0;
+
+  return (
+    <button
+      type="button"
+      onClick={() => temConteudo && onOpen(item)}
+      disabled={!temConteudo}
+      className="block w-full rounded-lg p-1 text-left transition hover:bg-white disabled:cursor-default disabled:hover:bg-transparent"
+    >
+      {temConteudo ? (
+        <>
+          {(tipoStyle || temStory) && (
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              {tipoStyle && (
+                <>
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
+                  <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
+                </>
+              )}
+              {temStory && (
+                <span
+                  className="rounded-full px-1.5 py-px text-[8px] font-black uppercase tracking-wide text-white"
+                  style={{ background: STORY_RING }}
+                >
+                  + Story
+                </span>
+              )}
+            </div>
+          )}
+          {!temImagem && (
+            <div className="flex justify-center py-1.5">
+              <ImageOff size={30} strokeWidth={1.4} className="text-[#1A1A1A]/20" />
+            </div>
+          )}
+          <p
+            className={cn(
+              'whitespace-pre-line text-[11px] font-bold leading-snug break-words',
+              temImagem ? 'text-[#1A1A1A]' : 'text-center text-[#1A1A1A]/60'
+            )}
+          >
+            {item['Título']}
+          </p>
+          {item['Funil'] && item['Nome do funil'] && (
+            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#E97933]">
+              Funil {item['Funil']} · {item['Nome do funil']}
+            </p>
+          )}
+        </>
+      ) : (
+        item['Título'] && (
+          <p className="whitespace-pre-line text-[11px] italic leading-snug text-[#1A1A1A]/40">{item['Título']}</p>
+        )
+      )}
+    </button>
+  );
+}
+
 function weekdayColumns(items: CalendarItem[]) {
   const weeks: (CalendarItem | null)[][] = [];
   let current: (CalendarItem | null)[] = new Array(7).fill(null);
   let hasContent = false;
 
   items.forEach((item) => {
-    const idx = WEEKDAYS.indexOf(normalizeWeekday(item['Dia da semana']));
+    const idx = weekdayIndex(item);
     if (idx < 0) return;
     if (idx === 0 && hasContent) {
       weeks.push(current);
@@ -117,16 +354,36 @@ export function ContentCalendar({
 }) {
   const [openItem, setOpenItem] = useState<CalendarItem | null>(null);
   const [previewMes, setPreviewMes] = useState<string | null>(null);
+  const [selectedMes, setSelectedMes] = useState<string | null>(null);
 
+  // Agrupa por mês normalizado ("novembro", "Novembro ", "11", data…) e ordena jan→dez.
   const grouped = useMemo(() => {
-    const map = new Map<string, CalendarItem[]>();
+    const map = new Map<string, { index: number; items: CalendarItem[] }>();
     items.forEach((item) => {
-      const mes = item['Mês'] || 'Sem mês';
-      if (!map.has(mes)) map.set(mes, []);
-      map.get(mes)!.push(item);
+      const index = monthIndex(item);
+      const mes = monthLabel(index, (item['Mês'] || '').trim());
+      if (!map.has(mes)) map.set(mes, { index, items: [] });
+      map.get(mes)!.items.push(item);
     });
-    return Array.from(map.entries());
+    return Array.from(map.entries())
+      .sort((a, b) => (a[1].index < 0 ? 99 : a[1].index) - (b[1].index < 0 ? 99 : b[1].index))
+      .map(([mes, group]) => [mes, group.items] as [string, CalendarItem[]]);
   }, [items]);
+
+  // Mês padrão: o mês atual, se existir no calendário; senão o próximo; senão o último.
+  const defaultMes = useMemo(() => {
+    if (grouped.length === 0) return null;
+    const atual = new Date().getMonth();
+    const comIndice = grouped.map(([mes, its]) => ({ mes, index: monthIndex(its[0]) }));
+    return (
+      comIndice.find((g) => g.index === atual)?.mes ||
+      comIndice.find((g) => g.index > atual)?.mes ||
+      grouped[grouped.length - 1][0]
+    );
+  }, [grouped]);
+
+  const activeMes = selectedMes && grouped.some(([mes]) => mes === selectedMes) ? selectedMes : defaultMes;
+  const visibleGroups = grouped.filter(([mes]) => mes === activeMes);
 
   if (loading) {
     return (
@@ -145,8 +402,45 @@ export function ContentCalendar({
   }
 
   return (
-    <div className="space-y-10">
-      {grouped.map(([mes, mesItems]) => (
+    <div className="space-y-6">
+      {/* Seletor de mês */}
+      {grouped.length > 0 && (
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-[#1A1A1A]/50">Mês</span>
+          <div className="-mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1">
+            {grouped.map(([mes, mesItems]) => {
+              const ativo = mes === activeMes;
+              const posts = mesItems.filter((it) => normalizeText(it['Conteúdo?']) === 'sim').length;
+              return (
+                <button
+                  key={mes}
+                  type="button"
+                  onClick={() => setSelectedMes(mes)}
+                  aria-pressed={ativo}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-black uppercase tracking-wide transition',
+                    ativo
+                      ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white'
+                      : 'border-[#1A1A1A]/15 bg-white text-[#1A1A1A]/70 hover:border-[#1A1A1A]/40'
+                  )}
+                >
+                  {mes}
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 py-px text-[10px]',
+                      ativo ? 'bg-[#E97933] text-white' : 'bg-[#F0EAE3] text-[#1A1A1A]/60'
+                    )}
+                  >
+                    {posts}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {visibleGroups.map(([mes, mesItems]) => (
         <div key={mes} className="overflow-hidden rounded-3xl border-2 border-[#1A1A1A]">
           {/* Header estilo calendário editorial */}
           <div className="flex items-start justify-between gap-4 p-5" style={{ backgroundColor: '#1A1A1A' }}>
@@ -175,67 +469,65 @@ export function ContentCalendar({
           </div>
 
           <div className="bg-[#FFF8F2]">
-            {weekdayColumns(mesItems).map((week, wi) => (
+            {monthGrid(mesItems).weeks.map((week, wi) => (
               <div key={wi} className="grid grid-cols-7 divide-x" style={{ borderColor: '#e3e7f7' }}>
-                {week.map((item, di) => {
-                  if (!item) {
-                    return <div key={di} className="min-h-[120px] border-t" style={{ borderColor: '#e3e7f7' }} />;
-                  }
-                  const temConteudo = (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim';
-                  const tipo = (item['Tipo'] || '').trim();
-                  const tipoStyle = TIPO_STYLE[tipo];
-                  const temImagem = imageSlides(item).some((s) => s.type === 'image');
-
-                  return (
-                    <button
-                      key={di}
-                      type="button"
-                      onClick={() => temConteudo && setOpenItem(item)}
-                      disabled={!temConteudo}
-                      className="min-h-[120px] border-t p-2.5 text-left transition hover:bg-white disabled:cursor-default sm:p-3"
-                      style={{ borderColor: '#e3e7f7' }}
-                    >
-                      <span className="text-xs font-black text-[#1A1A1A]">{item['Dia']}</span>
-                      {temConteudo ? (
-                        <div className="mt-1.5">
-                          {tipoStyle && (
-                            <div className="mb-1 flex items-center gap-1.5">
-                              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tipoStyle.dot }} />
-                              <span className="text-[10px] font-bold text-[#1A1A1A]/60">{tipoStyle.label}</span>
-                            </div>
-                          )}
-                          {!temImagem && (
-                            <div className="flex justify-center py-1.5">
-                              <ImageOff size={30} strokeWidth={1.4} className="text-[#1A1A1A]/20" />
-                            </div>
-                          )}
-                          <p
-                            className={cn(
-                              'whitespace-pre-line text-[11px] font-bold leading-snug break-words',
-                              temImagem ? 'text-[#1A1A1A]' : 'text-center text-[#1A1A1A]/60'
-                            )}
-                          >
-                            {item['Título']}
-                          </p>
-                          {item['Funil'] && item['Nome do funil'] && (
-                            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-[#E97933]">
-                              Funil {item['Funil']} · {item['Nome do funil']}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        item['Título'] && (
-                          <p className="mt-2 whitespace-pre-line text-[11px] italic leading-snug text-[#1A1A1A]/40">
-                            {item['Título']}
-                          </p>
-                        )
-                      )}
-                    </button>
-                  );
-                })}
+                {week.map((cell, di) => (
+                  <div
+                    key={di}
+                    className={cn('min-h-[120px] border-t p-1.5 sm:p-2', cell.day === null && 'bg-[#1A1A1A]/[0.03]')}
+                    style={{ borderColor: '#e3e7f7' }}
+                  >
+                    {cell.day !== null && (
+                      <span
+                        className={cn(
+                          'block px-1 text-xs font-black',
+                          cell.items.length ? 'text-[#1A1A1A]' : 'text-[#1A1A1A]/25'
+                        )}
+                      >
+                        {String(cell.day).padStart(2, '0')}
+                      </span>
+                    )}
+                    <div className="space-y-1.5">
+                      {cell.items.map((item, ii) => (
+                        <DayEntry key={item._row || ii} item={item} onOpen={setOpenItem} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
+
+          {/* Linhas sem dia da semana/data reconhecível: nunca esconder conteúdo */}
+          {(() => {
+            const semDia = monthGrid(mesItems).semDia.filter((it) => (it['Título'] || '').trim());
+            if (semDia.length === 0) return null;
+            return (
+              <div className="border-t-2 border-[#1A1A1A] bg-white p-4">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#1A1A1A]/50">
+                  Sem dia definido
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {semDia.map((item, i) => {
+                    const temConteudo = normalizeText(item['Conteúdo?']) === 'sim';
+                    return (
+                      <button
+                        key={item._row || i}
+                        type="button"
+                        onClick={() => temConteudo && setOpenItem(item)}
+                        disabled={!temConteudo}
+                        className="rounded-xl border p-3 text-left text-xs font-bold text-[#1A1A1A] transition hover:bg-[#FFF8F2] disabled:cursor-default disabled:text-[#1A1A1A]/40"
+                        style={{ borderColor: '#e3e7f7' }}
+                      >
+                        {item['Dia'] && <span className="mr-1.5 font-black">{displayDay(item)}</span>}
+                        <span className="whitespace-pre-line">{item['Título']}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       ))}
 
@@ -292,7 +584,7 @@ function InstaPreviewModal({
   const grupos = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
     items
-      .filter((item) => (item['Conteúdo?'] || '').trim().toLowerCase() === 'sim')
+      .filter((item) => normalizeText(item['Conteúdo?']) === 'sim')
       .forEach((item) => {
         const handle = (item['Insta'] || '').trim() || clienteNome;
         if (!map.has(handle)) map.set(handle, []);
@@ -462,6 +754,10 @@ function PostPreviewModal({
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [commentDraft, setCommentDraft] = useState(item['Comentário'] || '');
   const [showCommentBox, setShowCommentBox] = useState(false);
+  const [showStory, setShowStory] = useState(false);
+  const [legendaCopiada, setLegendaCopiada] = useState(false);
+  const stories = useMemo(() => storySlides(item), [item]);
+  const temStory = stories.length > 0;
 
   const roteiro = (item['Roteiro'] || '').trim();
   const direcao = (item['Direção criativa'] || '').trim();
@@ -481,6 +777,13 @@ function PostPreviewModal({
       setShowHeartBurst(true);
       window.setTimeout(() => setShowHeartBurst(false), 700);
     }
+  }
+
+  async function copiarLegenda() {
+    const ok = await copyText(item['Legenda'] || '');
+    if (!ok) return;
+    setLegendaCopiada(true);
+    window.setTimeout(() => setLegendaCopiada(false), 1800);
   }
 
   function submitComment() {
@@ -505,13 +808,44 @@ function PostPreviewModal({
         {/* Header estilo Instagram */}
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: '#f0f0f0' }}>
           <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1A1A1A] text-xs font-black text-white"
-              style={{ backgroundColor: '#E97933' }}
-            >
-              {clienteNome.charAt(0).toUpperCase()}
+            {temStory ? (
+              <button
+                type="button"
+                onClick={() => setShowStory(true)}
+                aria-label="Ver story deste post"
+                title="Ver story deste post"
+                className="rounded-full p-[2px] transition hover:scale-105"
+                style={{ background: STORY_RING }}
+              >
+                <span className="block rounded-full bg-white p-[2px]">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white"
+                    style={{ backgroundColor: '#E97933' }}
+                  >
+                    {clienteNome.charAt(0).toUpperCase()}
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1A1A1A] text-xs font-black text-white"
+                style={{ backgroundColor: '#E97933' }}
+              >
+                {clienteNome.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="leading-tight">
+              <span className="block text-sm font-black text-[#1A1A1A]">{clienteNome}</span>
+              {temStory && (
+                <button
+                  type="button"
+                  onClick={() => setShowStory(true)}
+                  className="text-[11px] font-bold text-[#EE2A7B] hover:underline"
+                >
+                  Ver story deste post
+                </button>
+              )}
             </div>
-            <span className="text-sm font-black text-[#1A1A1A]">{clienteNome}</span>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#F0EAE3]">
             <X size={18} />
@@ -621,6 +955,17 @@ function PostPreviewModal({
               <Download size={22} />
             </a>
           )}
+          {temStory && (
+            <button
+              type="button"
+              onClick={() => setShowStory(true)}
+              aria-label="Ver story deste post"
+              title="Ver story deste post"
+              className="transition hover:text-[#EE2A7B]"
+            >
+              <CircleDashed size={22} />
+            </button>
+          )}
           <Bookmark size={22} className="ml-auto" />
         </div>
 
@@ -635,6 +980,19 @@ function PostPreviewModal({
               <span className="font-black">{clienteNome}</span>{' '}
               <span className="whitespace-pre-line">{item['Legenda']}</span>
             </p>
+            <button
+              type="button"
+              onClick={copiarLegenda}
+              className={cn(
+                'mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wide transition',
+                legendaCopiada
+                  ? 'border-[#4C9A2A] bg-[#4C9A2A] text-white'
+                  : 'border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'
+              )}
+            >
+              {legendaCopiada ? <Check size={14} /> : <Copy size={14} />}
+              {legendaCopiada ? 'Legenda copiada!' : 'Copiar legenda'}
+            </button>
           </div>
         )}
 
@@ -692,6 +1050,198 @@ function PostPreviewModal({
                 <p className="mt-1 text-sm text-[#1A1A1A]/80 whitespace-pre-line">{direcao}</p>
               </div>
             )}
+          </div>
+        )}
+      </motion.div>
+
+      <AnimatePresence>
+        {showStory && temStory && (
+          <StoryViewer
+            slides={stories}
+            item={item}
+            clienteNome={clienteNome}
+            onClose={() => setShowStory(false)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function StoryViewer({
+  slides,
+  item,
+  clienteNome,
+  onClose,
+}: {
+  slides: Slide[];
+  item: CalendarItem;
+  clienteNome: string;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const elapsedRef = useRef(0);
+  const current = slides[Math.min(index, slides.length - 1)];
+
+  const next = useCallback(() => {
+    elapsedRef.current = 0;
+    setProgress(0);
+    if (index < slides.length - 1) setIndex((i) => i + 1);
+    else onClose();
+  }, [index, slides.length, onClose]);
+
+  const prev = useCallback(() => {
+    elapsedRef.current = 0;
+    setProgress(0);
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
+
+  // Barra de progresso + avanço automático (pausa ao segurar)
+  useEffect(() => {
+    if (paused) return;
+    let last = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      elapsedRef.current += now - last;
+      last = now;
+      const pct = Math.min(1, elapsedRef.current / STORY_DURATION_MS);
+      setProgress(pct);
+      if (pct >= 1) next();
+      else frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [paused, next]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowRight') next();
+      else if (e.key === 'ArrowLeft') prev();
+      else if (e.key === ' ') {
+        e.preventDefault();
+        setPaused((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [next, prev, onClose]);
+
+  const holdHandlers = {
+    onPointerDown: () => setPaused(true),
+    onPointerUp: () => setPaused(false),
+    onPointerLeave: () => setPaused(false),
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 sm:p-6"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      {/* Formato padrão de stories: 9:16 (1080x1920) */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.94 }}
+        transition={{ duration: 0.2 }}
+        className="relative aspect-[9/16] w-[min(100vw,calc(100dvh*9/16))] overflow-hidden bg-[#141414] select-none sm:w-[min(calc(90dvh*9/16),480px)] sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {current.type === 'image' ? (
+          <img
+            key={current.url}
+            src={current.url}
+            alt={`Story · ${item['Título'] || 'Post'}`}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-10 text-center">
+            <ImageOff size={76} strokeWidth={1.3} className="text-white/25" />
+            <p className="whitespace-pre-line text-base font-bold leading-snug text-white/75">{current.content}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-white/40">Story em produção</span>
+          </div>
+        )}
+
+        {/* Zonas de toque: esquerda volta, direita avança, segurar pausa */}
+        <div className="absolute inset-0 z-10 flex">
+          <button type="button" aria-label="Story anterior" className="h-full w-1/3" onClick={prev} {...holdHandlers} />
+          <button type="button" aria-label="Próximo story" className="h-full w-2/3" onClick={next} {...holdHandlers} />
+        </div>
+
+        {/* Topo: barras de progresso + perfil + ações */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-3">
+          <div className="flex gap-1">
+            {slides.map((_, i) => (
+              <span key={i} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/35">
+                <span
+                  className="block h-full bg-white"
+                  style={{ width: `${i < index ? 100 : i === index ? progress * 100 : 0}%` }}
+                />
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2.5">
+            <span className="rounded-full p-[2px]" style={{ background: STORY_RING }}>
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black text-xs font-black text-white"
+                style={{ backgroundColor: '#E97933' }}
+              >
+                {clienteNome.charAt(0).toUpperCase()}
+              </span>
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-black text-white">{clienteNome}</p>
+              <p className="truncate text-[11px] font-bold text-white/70">
+                Story do post{item['Dia'] ? ` · Dia ${item['Dia']}` : ''}
+                {item['Título'] ? ` · ${item['Título']}` : ''}
+              </p>
+            </div>
+
+            <div className="pointer-events-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPaused((p) => !p)}
+                aria-label={paused ? 'Continuar' : 'Pausar'}
+                className="rounded-full p-1.5 text-white hover:bg-white/15"
+              >
+                {paused ? <Play size={18} /> : <Pause size={18} />}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar story"
+                className="rounded-full p-1.5 text-white hover:bg-white/15"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Rodapé: download em qualidade original */}
+        {current.type === 'image' && (
+          <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-black/60 to-transparent px-4 pb-5 pt-10">
+            <a
+              href={current.downloadUrl}
+              download
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setPaused(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-[#1A1A1A] transition hover:bg-white/85"
+            >
+              <Download size={14} />
+              Baixar story{slides.length > 1 ? ` ${index + 1}/${slides.length}` : ''}
+            </a>
           </div>
         )}
       </motion.div>
